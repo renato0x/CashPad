@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>DivideAi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#EFEBE2;
+    --paper-deep:#E4DECF;
+    --surface:#FFFDF9;
+    --ink:#20291F;
+    --ink-soft:#4B5346;
+    --muted:#8C876F;
+    --line: #D8D2C0;
+    --credit:#2F7A4D;
+    --credit-soft:#E4EFE3;
+    --debit:#B33F3F;
+    --debit-soft:#F5E4E0;
+    --accent:#20291F;
+    --radius: 14px;
+    --shadow: 0 1px 0 rgba(32,41,31,0.05), 0 8px 24px -12px rgba(32,41,31,0.18);
+    font-family: 'Manrope', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background: var(--paper);
+    background-image:
+      repeating-linear-gradient(0deg, rgba(32,41,31,0.028) 0px, rgba(32,41,31,0.028) 1px, transparent 1px, transparent 28px);
+    color:var(--ink);
+    min-height:100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono{ font-family:'IBM Plex Mono', monospace; }
+  #app{
+    max-width:460px;
+    margin:0 auto;
+    min-height:100vh;
+    position:relative;
+    padding-bottom: 92px;
+  }
+  /* ---------- Header ---------- */
+  .topbar{
+    padding: 22px 20px 14px;
+    display:flex; align-items:baseline; justify-content:space-between;
+  }
+  .brand{
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:700;
+    font-size: 20px;
+    letter-spacing: -0.02em;
+  }
+  .brand span{ color: var(--credit); }
+  .icon-btn{
+    background:none; border:none; cursor:pointer; color:var(--ink);
+    display:flex; align-items:center; justify-content:center;
+    width:38px; height:38px; border-radius:10px;
+  }
+  .icon-btn:hover{ background: var(--paper-deep); }
+  .icon-btn:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible{
+    outline: 2px solid var(--ink); outline-offset:2px;
+  }
+
+  /* ---------- Receipt summary card ---------- */
+  .receipt{
+    margin: 4px 20px 22px;
+    background: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    position:relative;
+    padding: 20px 20px 26px;
+  }
+  .receipt .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px; letter-spacing:0.12em; text-transform:uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .balance-row{
+    display:flex; justify-content:space-between; gap:14px;
+  }
+  .balance-cell{ flex:1; }
+  .balance-cell .label{ font-size:12.5px; color:var(--ink-soft); margin-bottom:4px;}
+  .balance-cell .val{
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:700; font-size:22px; letter-spacing:-0.01em;
+  }
+  .balance-cell.credit .val{ color: var(--credit); }
+  .balance-cell.debit .val{ color: var(--debit); }
+  .divider-dashed{
+    border:none; border-top: 1.5px dashed var(--line); margin: 16px 0;
+  }
+  .net-line{ display:flex; justify-content:space-between; align-items:baseline; }
+  .net-line .label{ font-size:12.5px; color:var(--muted); }
+  .net-line .val{ font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:15px;}
+  /* torn edge */
+  .receipt::after{
+    content:"";
+    position:absolute; left:0; right:0; bottom:-9px; height:18px;
+    background:
+      linear-gradient(135deg, transparent 62%, var(--paper) 62%) 0 0/12px 12px repeat-x,
+      linear-gradient(-135deg, transparent 62%, var(--paper) 62%) 0 0/12px 12px repeat-x;
+    background-color: var(--surface);
+    -webkit-mask: linear-gradient(#000,#000) content-box;
+  }
+
+  /* ---------- Section label ---------- */
+  .section-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px; letter-spacing:0.12em; text-transform:uppercase;
+    color: var(--muted);
+    margin: 4px 24px 8px;
+  }
+
+  /* ---------- Expense list ---------- */
+  .list{ margin: 0 16px; display:flex; flex-direction:column; gap:8px; }
+  .expense-card{
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display:flex; align-items:center; gap:12px;
+    box-shadow: 0 1px 0 rgba(32,41,31,0.04), 0 4px 14px -10px rgba(32,41,31,0.15);
+    cursor:pointer;
+    border:1px solid transparent;
+  }
+  .expense-card:hover{ border-color: var(--line); }
+  .expense-card .glyph{
+    width:38px; height:38px; border-radius:10px; flex:none;
+    background: var(--paper-deep);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:15px;
+    color:var(--ink-soft);
+  }
+  .expense-card .info{ flex:1; min-width:0; }
+  .expense-card .desc{ font-weight:600; font-size:14.5px; }
+  .expense-card .meta{ font-size:12px; color:var(--muted); margin-top:2px; }
+  .expense-card .amount{
+    font-family:'IBM Plex Mono', monospace; font-weight:700; font-size:15px; flex:none;
+  }
+  .empty-state{
+    margin: 40px 24px; text-align:center; color:var(--muted);
+  }
+  .empty-state .big{ font-size:34px; margin-bottom:6px; }
+  .empty-state p{ font-size:13.5px; line-height:1.5; margin:6px 0 0;}
+
+  /* ---------- FAB ---------- */
+  .fab{
+    position:fixed; bottom:24px; left:50%;
+    transform: translateX(calc(-50% + 172px));
+    width:58px; height:58px; border-radius:50%;
+    background: var(--ink); color: var(--paper);
+    border:none; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow: 0 10px 24px -8px rgba(32,41,31,0.45);
+    z-index:20;
+  }
+  .fab:hover{ background:#33402F; }
+
+  /* ---------- Bottom nav ---------- */
+  .bottomnav{
+    position:fixed; bottom:0; left:0; right:0;
+    display:flex; justify-content:center;
+    z-index:15;
+  }
+  .bottomnav-inner{
+    width:100%; max-width:460px;
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+    display:flex;
+    padding: 10px 20px calc(10px + env(safe-area-inset-bottom));
+  }
+  .nav-btn{
+    flex:1; background:none; border:none; cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+    color: var(--muted); font-size:11px; font-family:'Manrope';
+    padding:4px 0;
+  }
+  .nav-btn.active{ color: var(--ink); font-weight:700; }
+
+  /* ---------- Full screens ---------- */
+  .screen{
+    position:fixed; inset:0; background: var(--paper);
+    max-width:460px; margin:0 auto;
+    transform: translateY(100%);
+    transition: transform 0.28s cubic-bezier(.2,.8,.2,1);
+    z-index:30; overflow-y:auto;
+    display:flex; flex-direction:column;
+  }
+  .screen.open{ transform: translateY(0); }
+  .screen-header{
+    display:flex; align-items:center; gap:10px;
+    padding: 18px 16px 12px;
+    position:sticky; top:0; background:var(--paper); z-index:2;
+  }
+  .screen-title{ font-weight:800; font-size:17px; flex:1; }
+  .screen-body{ padding: 4px 20px 40px; flex:1; }
+
+  /* ---------- Form elements ---------- */
+  label.field-label{
+    display:block; font-size:12px; font-weight:700; letter-spacing:0.03em;
+    color: var(--ink-soft); margin: 18px 0 6px; text-transform:uppercase;
+  }
+  input[type=text], input[type=number], select{
+    width:100%; padding: 13px 14px; border-radius:10px;
+    border:1.5px solid var(--line); background: var(--surface);
+    font-size:15px; font-family:'Manrope'; color:var(--ink);
+  }
+  input.mono-input{ font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:18px; }
+  .mode-toggle{
+    display:flex; background: var(--paper-deep); border-radius: 10px; padding:3px; margin-top:6px;
+  }
+  .mode-toggle button{
+    flex:1; padding:10px; border:none; background:none; border-radius:8px;
+    font-weight:700; font-size:13px; cursor:pointer; color:var(--ink-soft);
+  }
+  .mode-toggle button.active{ background: var(--surface); color:var(--ink); box-shadow: var(--shadow); }
+
+  .chip-row{ display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+  .chip{
+    padding: 9px 14px; border-radius:20px; border:1.5px solid var(--line);
+    background: var(--surface); font-size:13.5px; font-weight:600; cursor:pointer;
+    color: var(--ink-soft);
+  }
+  .chip.selected{ background: var(--ink); border-color:var(--ink); color: var(--paper); }
+  .chip.add-chip{ border-style:dashed; color:var(--muted); }
+
+  .item-row{
+    display:flex; gap:8px; align-items:center; margin-top:10px;
+    background:var(--surface); border-radius:10px; padding:10px; border:1px solid var(--line);
+  }
+  .item-row input[type=text]{ flex:2; padding:9px 10px; font-size:13.5px;}
+  .item-row input[type=number]{ flex:1; padding:9px 10px; font-size:13.5px; }
+  .item-row select{ flex:1.3; padding:9px 8px; font-size:12.5px; }
+  .item-row .rm{ background:none; border:none; cursor:pointer; color:var(--debit); flex:none; padding:4px;}
+  .add-item-btn{
+    margin-top:12px; width:100%; padding:11px; border-radius:10px; border:1.5px dashed var(--line);
+    background:none; color:var(--ink-soft); font-weight:700; font-size:13.5px; cursor:pointer;
+  }
+  .primary-btn{
+    width:100%; padding:15px; border-radius:12px; border:none;
+    background: var(--ink); color: var(--paper); font-weight:700; font-size:15px;
+    cursor:pointer; margin-top:26px;
+  }
+  .primary-btn:disabled{ opacity:0.4; cursor:not-allowed; }
+  .ghost-btn{
+    width:100%; padding:13px; border-radius:12px; border:1.5px solid var(--line);
+    background:none; color:var(--ink-soft); font-weight:700; font-size:14px; cursor:pointer; margin-top:10px;
+  }
+  .danger-btn{ color: var(--debit); border-color: var(--debit-soft); }
+  .helper-text{ font-size:12px; color:var(--muted); margin-top:6px; }
+
+  /* Detail screen */
+  .detail-total{ text-align:center; margin: 10px 0 4px; }
+  .detail-total .val{ font-family:'IBM Plex Mono',monospace; font-weight:800; font-size:34px; }
+  .detail-total .desc{ font-size:14px; color:var(--ink-soft); margin-top:4px; }
+  .detail-total .date{ font-size:12px; color:var(--muted); margin-top:2px; }
+  .split-row{
+    display:flex; justify-content:space-between; align-items:center;
+    padding: 12px 0; border-bottom:1px solid var(--line);
+    font-size:14px;
+  }
+  .split-row .name{ font-weight:600; }
+  .split-row .who-paid{ font-size:11px; color:var(--muted); font-weight:500; }
+  .split-row .amt{ font-family:'IBM Plex Mono',monospace; font-weight:700; }
+
+  /* People manage */
+  .person-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:13px 4px; border-bottom:1px solid var(--line);
+  }
+  .person-row .name{ font-weight:600; font-size:14.5px; }
+  .add-person-row{ display:flex; gap:8px; margin-top:14px; }
+  .add-person-row input{ flex:1; }
+  .add-person-row button{
+    background: var(--ink); color:var(--paper); border:none; border-radius:10px; padding: 0 16px;
+    font-weight:700; cursor:pointer;
+  }
+
+  .toast{
+    position:fixed; bottom: 100px; left:50%; transform:translateX(-50%);
+    background: var(--ink); color:var(--paper); padding:10px 18px; border-radius:30px;
+    font-size:13px; font-weight:600; z-index:50; opacity:0; pointer-events:none;
+    transition: opacity 0.2s, transform 0.2s;
+  }
+  .toast.show{ opacity:1; transform: translateX(-50%) translateY(-6px); }
+
+  ::-webkit-scrollbar{ display:none; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div class="topbar">
+    <div class="brand">divide<span>ai</span></div>
+    <button class="icon-btn" id="btnPeople" aria-label="Gerenciar pessoas">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><circle cx="17.5" cy="9" r="2.6"/><path d="M21.5 20c0-2.8-1.8-4.9-4.3-5.6"/></svg>
+    </button>
+  </div>
+
+  <div class="receipt">
+    <div class="eyebrow">seu saldo</div>
+    <div class="balance-row">
+      <div class="balance-cell debit">
+        <div class="label">Você deve</div>
+        <div class="val mono" id="sumYouOwe">R$ 0,00</div>
+      </div>
+      <div class="balance-cell credit">
+        <div class="label">Te devem</div>
+        <div class="val mono" id="sumOwedToYou">R$ 0,00</div>
+      </div>
+    </div>
+    <hr class="divider-dashed">
+    <div class="net-line">
+      <div class="label">saldo geral</div>
+      <div class="val" id="netLine">—</div>
+    </div>
+  </div>
+
+  <div class="section-label" id="historyLabel">histórico</div>
+  <div class="list" id="expenseList"></div>
+
+  <button class="fab" id="btnAdd" aria-label="Adicionar gasto">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+  </button>
+
+  <div class="bottomnav">
+    <div class="bottomnav-inner">
+      <button class="nav-btn active" id="navHome">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l9-7 9 7"/><path d="M5 10v9a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1v-9"/></svg>
+        Início
+      </button>
+      <button class="nav-btn" id="navBalances">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
+        Saldos
+      </button>
+    </div>
+  </div>
+
+  <!-- ============ ADD/EDIT EXPENSE SCREEN ============ -->
+  <div class="screen" id="screenForm">
+    <div class="screen-header">
+      <button class="icon-btn" id="formClose" aria-label="Voltar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <div class="screen-title" id="formTitle">Novo gasto</div>
+    </div>
+    <div class="screen-body">
+      <label class="field-label">Descrição</label>
+      <input type="text" id="fDesc" placeholder="Ex: Jantar sexta" maxlength="60">
+
+      <label class="field-label">Quem pagou</label>
+      <select id="fPayer"></select>
+
+      <label class="field-label">Modo</label>
+      <div class="mode-toggle">
+        <button type="button" id="modeSimples" class="active">Simples</button>
+        <button type="button" id="modeItens">Com itens</button>
+      </div>
+
+      <div id="simplesBlock">
+        <label class="field-label">Valor total</label>
+        <input type="number" inputmode="decimal" step="0.01" min="0" id="fValor" class="mono-input" placeholder="0,00">
+      </div>
+
+      <div id="itensBlock" style="display:none;">
+        <label class="field-label">Itens</label>
+        <div id="itemsContainer"></div>
+        <button type="button" class="add-item-btn" id="btnAddItem">+ Adicionar item</button>
+        <p class="helper-text">Itens sem dono são divididos entre todos os participantes.</p>
+      </div>
+
+      <label class="field-label">Participantes</label>
+      <div class="chip-row" id="participantChips"></div>
+      <p class="helper-text">Toque para incluir ou remover alguém deste gasto.</p>
+
+      <button class="primary-btn" id="btnSaveExpense">Salvar gasto</button>
+      <button class="ghost-btn danger-btn" id="btnDeleteExpense" style="display:none;">Excluir gasto</button>
+    </div>
+  </div>
+
+  <!-- ============ EXPENSE DETAIL SCREEN ============ -->
+  <div class="screen" id="screenDetail">
+    <div class="screen-header">
+      <button class="icon-btn" id="detailClose" aria-label="Voltar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <div class="screen-title">Detalhes</div>
+      <button class="icon-btn" id="detailEdit" aria-label="Editar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>
+      </button>
+    </div>
+    <div class="screen-body">
+      <div class="detail-total">
+        <div class="val mono" id="dTotal">R$ 0,00</div>
+        <div class="desc" id="dDesc">—</div>
+        <div class="date" id="dDate">—</div>
+      </div>
+      <hr class="divider-dashed">
+      <div id="dSplits"></div>
+    </div>
+  </div>
+
+  <!-- ============ PEOPLE SCREEN ============ -->
+  <div class="screen" id="screenPeople">
+    <div class="screen-header">
+      <button class="icon-btn" id="peopleClose" aria-label="Voltar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <div class="screen-title">Pessoas</div>
+    </div>
+    <div class="screen-body">
+      <div id="peopleList"></div>
+      <div class="add-person-row">
+        <input type="text" id="newPersonName" placeholder="Nome da pessoa" maxlength="30">
+        <button id="btnAddPerson">Adicionar</button>
+      </div>
+      <p class="helper-text">Pessoas cadastradas aqui podem ser usadas em qualquer gasto.</p>
+    </div>
+  </div>
+
+  <!-- ============ BALANCES SCREEN ============ -->
+  <div class="screen" id="screenBalances">
+    <div class="screen-header">
+      <button class="icon-btn" id="balancesClose" aria-label="Voltar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <div class="screen-title">Saldos</div>
+    </div>
+    <div class="screen-body">
+      <div class="section-label" style="margin-left:0;">te devem</div>
+      <div id="balCredit"></div>
+      <div class="section-label" style="margin-left:0; margin-top:22px;">você deve</div>
+      <div id="balDebit"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- ============ SHARE MODAL ============ -->
+  <div class="screen" id="screenShare" style="align-items:flex-end; justify-content:flex-end;">
+    <div class="share-modal" id="shareModal">
+      <div class="share-header">
+        <div class="share-title" id="shareTitle">Compartilhar via WhatsApp</div>
+        <button class="icon-btn" id="shareClose" aria-label="Fechar">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="share-body">
+        <div class="share-preview" id="sharePreview"></div>
+        <div class="share-actions">
+          <button class="primary-btn" id="btnCopyShare">Copiar mensagem</button>
+          <a class="primary-btn wa-btn" id="btnWhatsAppShare" href="#" target="_blank" rel="noopener">Enviar via WhatsApp</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const YOU_ID = "__you__";
+  const YOU_NAME = "Você";
+  const fmt = v => (isNaN(v) ? 0 : v).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+
+  let state = { people: [], expenses: [] };
+  let form = { editingId: null, mode: 'simples', participants: new Set(), items: [], payer: YOU_ID };
+
+  // ---------- storage ----------
+  async function load(){
+    try{
+      const p = await window.storage.get('divideai:people');
+      state.people = p ? JSON.parse(p.value) : [];
+    }catch(e){ state.people = []; }
+    try{
+      const ex = await window.storage.get('divideai:expenses');
+      state.expenses = ex ? JSON.parse(ex.value) : [];
+    }catch(e){ state.expenses = []; }
+    renderAll();
+  }
+  async function savePeople(){
+    try{ await window.storage.set('divideai:people', JSON.stringify(state.people), false); }
+    catch(e){ toast('Não foi possível salvar as pessoas'); }
+  }
+  async function saveExpenses(){
+    try{ await window.storage.set('divideai:expenses', JSON.stringify(state.expenses), false); }
+    catch(e){ toast('Não foi possível salvar o gasto'); }
+  }
+
+  function toast(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'), 1800);
+  }
+
+  function personName(id){
+    if(id === YOU_ID) return YOU_NAME;
+    const p = state.people.find(p=>p.id===id);
+    return p ? p.name : '—';
+  }
+
+  // ---------- balance computation ----------
+  function computeNet(){
+    // net[personId] = positive => they owe you; negative => you owe them
+    const net = {};
+    state.people.forEach(p => net[p.id] = 0);
+    state.expenses.forEach(exp => {
+      const shares = computeShares(exp);
+      const payer = exp.payer || YOU_ID;
+      Object.entries(shares).forEach(([pid, amount]) => {
+        if(pid === payer) return;
+        if(payer === YOU_ID){
+          net[pid] = (net[pid]||0) + amount; // they owe you
+        } else if(pid === YOU_ID){
+          net[payer] = (net[payer]||0) - amount; // you owe payer
+        } else {
+          // third-party payer, participant not you: not tracked in your ledger directly
+        }
+      });
+    });
+    return net;
+  }
+
+  function computeShares(exp){
+    const shares = {};
+    const participants = exp.participants && exp.participants.length ? exp.participants : [YOU_ID];
+    if(exp.mode === 'itens' && exp.items && exp.items.length){
+      participants.forEach(p => shares[p] = 0);
+      const noOwnerItems = [];
+      exp.items.forEach(it => {
+        const val = parseFloat(it.value) || 0;
+        if(it.owner && it.owner !== 'none'){
+          shares[it.owner] = (shares[it.owner]||0) + val;
+        } else {
+          noOwnerItems.push(val);
+        }
+      });
+      const poolTotal = noOwnerItems.reduce((a,b)=>a+b,0);
+      if(participants.length && poolTotal){
+        const each = poolTotal / participants.length;
+        participants.forEach(p => shares[p] = (shares[p]||0) + each);
+      }
+    } else {
+      const val = parseFloat(exp.value) || 0;
+      const each = participants.length ? val / participants.length : val;
+      participants.forEach(p => shares[p] = each);
+    }
+    return shares;
+  }
+
+  function expenseTotal(exp){
+    if(exp.mode === 'itens' && exp.items && exp.items.length){
+      return exp.items.reduce((s,it)=>s+(parseFloat(it.value)||0), 0);
+    }
+    return parseFloat(exp.value) || 0;
+  }
+
+  // ---------- rendering: home ----------
+  function renderAll(){
+    renderHome();
+  }
+
+  function renderHome(){
+    const net = computeNet();
+    let owedToYou = 0, youOwe = 0;
+    Object.values(net).forEach(v => { if(v > 0) owedToYou += v; else youOwe += -v; });
+    document.getElementById('sumYouOwe').textContent = fmt(youOwe);
+    document.getElementById('sumOwedToYou').textContent = fmt(owedToYou);
+    const netVal = owedToYou - youOwe;
+    const netEl = document.getElementById('netLine');
+    netEl.textContent = (netVal>=0? '+ ' : '- ') + fmt(Math.abs(netVal));
+    netEl.style.color = netVal >= 0 ? 'var(--credit)' : 'var(--debit)';
+
+    const list = document.getElementById('expenseList');
+    const sorted = [...state.expenses].sort((a,b)=> b.date - a.date);
+    if(!sorted.length){
+      list.innerHTML = `<div class="empty-state"><div class="big">🧾</div><p>Nenhum gasto ainda.<br>Toque no + para anotar o primeiro.</p></div>`;
+      return;
+    }
+    list.innerHTML = sorted.map(exp => {
+      const total = expenseTotal(exp);
+      const d = new Date(exp.date);
+      const dateStr = d.toLocaleDateString('pt-BR', {day:'2-digit', month:'short'});
+      const initials = (exp.description||'?').trim().slice(0,2).toUpperCase();
+      const nParticipants = (exp.participants||[]).length || 1;
+      return `<div class="expense-card" data-id="${exp.id}">
+        <div class="glyph">${initials}</div>
+        <div class="info">
+          <div class="desc">${escapeHtml(exp.description||'Sem descrição')}</div>
+          <div class="meta">${dateStr} · ${nParticipants} pessoa${nParticipants>1?'s':''}</div>
+        </div>
+        <div class="amount">${fmt(total)}</div>
+      </div>`;
+    }).join('');
+    list.querySelectorAll('.expense-card').forEach(card => {
+      card.addEventListener('click', () => openDetail(card.dataset.id));
+    });
+  }
+
+  function escapeHtml(s){
+    return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // ---------- screens ----------
+  function openScreen(id){ document.getElementById(id).classList.add('open'); }
+  function closeScreen(id){ document.getElementById(id).classList.remove('open'); }
+
+  // ---------- people screen ----------
+  function renderPeopleScreen(){
+    const el = document.getElementById('peopleList');
+    if(!state.people.length){
+      el.innerHTML = `<p class="helper-text">Nenhuma pessoa cadastrada ainda.</p>`;
+      return;
+    }
+    el.innerHTML = state.people.map(p => `
+      <div class="person-row" data-id="${p.id}">
+        <div class="name">${escapeHtml(p.name)}</div>
+        <button class="icon-btn rm-person" data-id="${p.id}" aria-label="Remover ${escapeHtml(p.name)}">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+        </button>
+      </div>`).join('');
+    el.querySelectorAll('.rm-person').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        const usedIn = state.expenses.some(ex => (ex.participants||[]).includes(id) || ex.payer === id || (ex.items||[]).some(it=>it.owner===id));
+        if(usedIn && !confirm('Esta pessoa aparece em gastos existentes. Remover mesmo assim?')) return;
+        state.people = state.people.filter(p=>p.id!==id);
+        await savePeople();
+        renderPeopleScreen();
+        renderAll();
+        toast('Pessoa removida');
+      });
+    });
+  }
+
+  document.getElementById('btnPeople').addEventListener('click', () => { renderPeopleScreen(); openScreen('screenPeople'); });
+  document.getElementById('peopleClose').addEventListener('click', () => closeScreen('screenPeople'));
+  document.getElementById('btnAddPerson').addEventListener('click', addPerson);
+  document.getElementById('newPersonName').addEventListener('keydown', e => { if(e.key==='Enter') addPerson(); });
+  async function addPerson(){
+    const input = document.getElementById('newPersonName');
+    const name = input.value.trim();
+    if(!name) return;
+    state.people.push({id: uid(), name});
+    input.value = '';
+    await savePeople();
+    renderPeopleScreen();
+    renderAll();
+    toast('Pessoa adicionada');
+  }
+
+  // ---------- balances screen ----------
+  function renderBalancesScreen(){
+    const net = computeNet();
+    const credit = [], debit = [];
+    state.people.forEach(p => {
+      const v = net[p.id] || 0;
+      if(v > 0.005) credit.push({name:p.name, val:v});
+      else if(v < -0.005) debit.push({name:p.name, val:-v});
+    });
+    const creditEl = document.getElementById('balCredit');
+    const debitEl = document.getElementById('balDebit');
+creditEl.innerHTML = credit.length ? credit.map(c=>`
+        <div class="split-row">
+          <div class="name">${escapeHtml(c.name)}</div>
+          <div class="amt" style="color:var(--credit)">${fmt(c.val)}</div>
+          <button class="icon-btn share-btn" data-person="${escapeHtml(c.name)}" data-type="credit" data-val="${c.val.toFixed(2)}" aria-label="Compartilhar com ${escapeHtml(c.name)}">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l-1.79 1.8a5 5 0 0 0 7.4 0l1.79-1.8"/><path d="M15.42 19.48l1.82-1.8a5 5 0 0 0-7.4 0l-1.8 1.82"/></svg>
+          </button>
+        </div>
+      `).join('') : `<p class="helper-text">Ninguém te deve nada por aqui.</p>`;
+      debitEl.innerHTML = debit.length ? debit.map(c=>`
+        <div class="split-row">
+          <div class="name">${escapeHtml(c.name)}</div>
+          <div class="amt" style="color:var(--debit)">${fmt(c.val)}</div>
+          <button class="icon-btn share-btn" data-person="${escapeHtml(c.name)}" data-type="debit" data-val="${c.val.toFixed(2)}" aria-label="Compartilhar com ${escapeHtml(c.name)}">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l-1.79 1.8a5 5 0 0 0 7.4 0l1.79-1.8"/><path d="M15.42 19.48l1.82-1.8a5 5 0 0 0-7.4 0l-1.8 1.82"/></svg>
+          </button>
+        </div>
+      `).join('') : `<p class="helper-text">Você não deve nada por aqui.</p>`;
+
+      document.querySelectorAll('.share-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openShareModal(btn.dataset.person, btn.dataset.type === 'credit', parseFloat(btn.dataset.val));
+        });
+      });
+  }
+  document.getElementById('navBalances').addEventListener('click', () => {
+    renderBalancesScreen();
+    openScreen('screenBalances');
+  });
+  document.getElementById('balancesClose').addEventListener('click', () => closeScreen('screenBalances'));
+  document.getElementById('navHome').addEventListener('click', () => {});
+
+  // ---------- expense form ----------
+  function resetForm(){
+    form = { editingId: null, mode: 'simples', participants: new Set(), items: [], payer: YOU_ID };
+    document.getElementById('fDesc').value = '';
+    document.getElementById('fValor').value = '';
+    setMode('simples');
+    renderPayerSelect();
+    renderParticipantChips();
+    renderItems();
+    document.getElementById('btnDeleteExpense').style.display = 'none';
+    document.getElementById('formTitle').textContent = 'Novo gasto';
+  }
+
+  function renderPayerSelect(){
+    const sel = document.getElementById('fPayer');
+    sel.innerHTML = `<option value="${YOU_ID}">Você</option>` +
+      state.people.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+    sel.value = form.payer;
+  }
+  document.getElementById('fPayer').addEventListener('change', e => { form.payer = e.target.value; });
+
+  function setMode(mode){
+    form.mode = mode;
+    document.getElementById('modeSimples').classList.toggle('active', mode==='simples');
+    document.getElementById('modeItens').classList.toggle('active', mode==='itens');
+    document.getElementById('simplesBlock').style.display = mode==='simples' ? '' : 'none';
+    document.getElementById('itensBlock').style.display = mode==='itens' ? '' : 'none';
+  }
+  document.getElementById('modeSimples').addEventListener('click', () => setMode('simples'));
+  document.getElementById('modeItens').addEventListener('click', () => { setMode('itens'); if(!form.items.length) addItem(); });
+
+  function renderParticipantChips(){
+    const el = document.getElementById('participantChips');
+    const all = [{id: YOU_ID, name: YOU_NAME}, ...state.people];
+    el.innerHTML = all.map(p => `
+      <div class="chip ${form.participants.has(p.id)?'selected':''}" data-id="${p.id}">${escapeHtml(p.name)}</div>
+    `).join('') + (state.people.length===0 ? '' : '');
+    el.querySelectorAll('.chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const id = chip.dataset.id;
+        if(form.participants.has(id)) form.participants.delete(id);
+        else form.participants.add(id);
+        renderParticipantChips();
+        renderItemOwnerOptions();
+      });
+    });
+  }
+
+  function addItem(){
+    form.items.push({id: uid(), name:'', value:'', owner:'none'});
+    renderItems();
+  }
+  document.getElementById('btnAddItem').addEventListener('click', addItem);
+
+  function renderItems(){
+    const el = document.getElementById('itemsContainer');
+    el.innerHTML = form.items.map(it => `
+      <div class="item-row" data-id="${it.id}">
+        <input type="text" placeholder="Item" value="${escapeHtml(it.name)}" class="it-name">
+        <input type="number" placeholder="0,00" step="0.01" min="0" value="${it.value}" class="it-value mono">
+        <select class="it-owner">${ownerOptions(it.owner)}</select>
+        <button type="button" class="rm" aria-label="Remover item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>`).join('');
+    el.querySelectorAll('.item-row').forEach(row => {
+      const id = row.dataset.id;
+      const item = form.items.find(i=>i.id===id);
+      row.querySelector('.it-name').addEventListener('input', e => item.name = e.target.value);
+      row.querySelector('.it-value').addEventListener('input', e => item.value = e.target.value);
+      row.querySelector('.it-owner').addEventListener('change', e => item.owner = e.target.value);
+      row.querySelector('.rm').addEventListener('click', () => {
+        form.items = form.items.filter(i=>i.id!==id);
+        renderItems();
+      });
+    });
+  }
+  function ownerOptions(selected){
+    const all = [{id:'none', name:'Sem dono (dividir)'}, {id:YOU_ID, name:YOU_NAME}, ...state.people];
+    return all.map(p => `<option value="${p.id}" ${p.id===selected?'selected':''}>${escapeHtml(p.name)}</option>`).join('');
+  }
+  function renderItemOwnerOptions(){ renderItems(); }
+
+  function openNewExpense(){
+    resetForm();
+    // default: select all existing people + you
+    form.participants = new Set([YOU_ID, ...state.people.map(p=>p.id)]);
+    renderParticipantChips();
+    openScreen('screenForm');
+  }
+  document.getElementById('btnAdd').addEventListener('click', openNewExpense);
+  document.getElementById('formClose').addEventListener('click', () => closeScreen('screenForm'));
+
+  function openEditExpense(exp){
+    form.editingId = exp.id;
+    form.mode = exp.mode;
+    form.payer = exp.payer || YOU_ID;
+    form.participants = new Set(exp.participants || []);
+    form.items = (exp.items||[]).map(it => ({...it}));
+    document.getElementById('fDesc').value = exp.description || '';
+    document.getElementById('fValor').value = exp.value || '';
+    setMode(exp.mode);
+    renderPayerSelect();
+    renderParticipantChips();
+    renderItems();
+    document.getElementById('btnDeleteExpense').style.display = '';
+    document.getElementById('formTitle').textContent = 'Editar gasto';
+    openScreen('screenForm');
+  }
+
+  document.getElementById('btnSaveExpense').addEventListener('click', async () => {
+    const description = document.getElementById('fDesc').value.trim();
+    if(!description){ toast('Digite uma descrição'); return; }
+    if(!form.participants.size){ toast('Selecione ao menos um participante'); return; }
+    let value = null, items = null;
+    if(form.mode === 'simples'){
+      value = parseFloat(document.getElementById('fValor').value);
+      if(!value || value <= 0){ toast('Informe um valor válido'); return; }
+    } else {
+      items = form.items.filter(it => it.name.trim() && parseFloat(it.value) > 0)
+        .map(it => ({name: it.name.trim(), value: parseFloat(it.value), owner: it.owner}));
+      if(!items.length){ toast('Adicione ao menos um item válido'); return; }
+    }
+    const expense = {
+      id: form.editingId || uid(),
+      description,
+      mode: form.mode,
+      value: form.mode==='simples' ? value : null,
+      items: form.mode==='itens' ? items : [],
+      participants: Array.from(form.participants),
+      payer: form.payer,
+      date: form.editingId ? (state.expenses.find(e=>e.id===form.editingId)||{}).date || Date.now() : Date.now()
+    };
+    if(form.editingId){
+      state.expenses = state.expenses.map(e => e.id===form.editingId ? expense : e);
+    } else {
+      state.expenses.push(expense);
+    }
+    await saveExpenses();
+    renderAll();
+    closeScreen('screenForm');
+    toast('Gasto salvo');
+  });
+
+  document.getElementById('btnDeleteExpense').addEventListener('click', async () => {
+    if(!form.editingId) return;
+    if(!confirm('Excluir este gasto?')) return;
+    state.expenses = state.expenses.filter(e => e.id !== form.editingId);
+    await saveExpenses();
+    renderAll();
+    closeScreen('screenForm');
+    toast('Gasto excluído');
+  });
+
+  // ---------- detail screen ----------
+  let currentDetailId = null;
+  function openDetail(id){
+    currentDetailId = id;
+    const exp = state.expenses.find(e=>e.id===id);
+    if(!exp) return;
+    const total = expenseTotal(exp);
+    document.getElementById('dTotal').textContent = fmt(total);
+    document.getElementById('dDesc').textContent = exp.description;
+    const d = new Date(exp.date);
+    document.getElementById('dDate').textContent = d.toLocaleDateString('pt-BR', {day:'2-digit', month:'long', year:'numeric'}) + ' · pago por ' + personName(exp.payer||YOU_ID);
+    const shares = computeShares(exp);
+    const rows = Object.entries(shares).map(([pid, amt]) => `
+      <div class="split-row">
+        <div>
+          <div class="name">${escapeHtml(personName(pid))}</div>
+          ${pid===(exp.payer||YOU_ID) ? '<div class="who-paid">pagou o total</div>' : ''}
+        </div>
+        <div class="amt">${fmt(amt)}</div>
+      </div>`).join('');
+    document.getElementById('dSplits').innerHTML = rows;
+    openScreen('screenDetail');
+  }
+  document.getElementById('detailClose').addEventListener('click', () => closeScreen('screenDetail'));
+  document.getElementById('detailEdit').addEventListener('click', () => {
+    const exp = state.expenses.find(e=>e.id===currentDetailId);
+    if(!exp) return;
+    closeScreen('screenDetail');
+    openEditExpense(exp);
+  });
+
+  load();
+})();
+</script>
+</body>
+</html>
