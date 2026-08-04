@@ -37,7 +37,17 @@ body{
 /* ---------- Header ---------- */
 .topbar{
   padding: 22px 20px 14px;
-  display:flex; align-items:baseline; justify-content:space-between;
+  display:flex; align-items:center; justify-content:center;
+  position:relative;
+}
+.topbar .icon-btn{
+  position:absolute;
+}
+.topbar .icon-btn:first-of-type{
+  left:20px;
+}
+.topbar .icon-btn:last-of-type{
+  right:20px;
 }
 .brand{
   font-family:'IBM Plex Mono', monospace;

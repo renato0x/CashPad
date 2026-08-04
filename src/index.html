@@ -44,6 +44,9 @@
 
   <div class="topbar">
     <div class="brand">divide<span>ai</span></div>
+    <button class="icon-btn" id="btnInfo" aria-label="Informacoes do bloco">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+    </button>
     <button class="icon-btn" id="btnPeople" aria-label="Gerenciar pessoas">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><circle cx="17.5" cy="9" r="2.6"/><path d="M21.5 20c0-2.8-1.8-4.9-4.3-5.6"/></svg>
     </button>
@@ -203,6 +206,24 @@
           <button class="primary-btn" id="btnCopyShare">Copiar mensagem</button>
           <a class="primary-btn wa-btn" id="btnWhatsAppShare" href="#" target="_blank" rel="noopener">Enviar via WhatsApp</a>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ INFO MODAL ============ -->
+  <div class="screen" id="screenInfo">
+    <div class="share-modal">
+      <div class="share-header">
+        <div class="share-title">Bloco de gastos</div>
+        <button class="icon-btn" id="infoClose" aria-label="Fechar">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="share-body">
+        <p class="login-desc">Compartilhe este codigo para acessar este bloco em outros dispositivos:</p>
+        <div class="login-code-display" id="infoCodeDisplay">------</div>
+        <button class="primary-btn login-btn-copy" id="btnCopyInfoCode">Copiar codigo</button>
+        <button class="ghost-btn danger-btn" id="btnLogout" style="margin-top:24px;">Sair do bloco</button>
       </div>
     </div>
   </div>

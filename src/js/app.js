@@ -593,6 +593,31 @@
     closeScreen('screenShare');
   });
 
+  // ---------- info modal ----------
+  document.getElementById('btnInfo').addEventListener('click', () => {
+    const code = getAccessCode();
+    if(code){
+      document.getElementById('infoCodeDisplay').textContent = code;
+      openScreen('screenInfo');
+    }
+  });
+  document.getElementById('infoClose').addEventListener('click', () => closeScreen('screenInfo'));
+  document.getElementById('btnCopyInfoCode').addEventListener('click', () => {
+    const code = document.getElementById('infoCodeDisplay').textContent;
+    navigator.clipboard.writeText(code).then(() => toast('Codigo copiado!'));
+  });
+
+  // ---------- logout ----------
+  document.getElementById('btnLogout').addEventListener('click', () => {
+    if(!confirm('Sair deste bloco?')) return;
+    if(unsubscribe) unsubscribe();
+    localStorage.removeItem('divideai:code');
+    state = { people: [], expenses: [] };
+    closeScreen('screenInfo');
+    showLogin();
+    toast('Saiu do bloco');
+  });
+
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js')
       .then((reg) => console.log('SW registered:', reg.scope))
