@@ -16,7 +16,31 @@
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-<div id="app">
+
+<!-- ============ LOGIN SCREEN ============ -->
+<div id="screenLogin" class="login-screen">
+  <div class="login-card">
+    <div class="login-brand">divide<span>ai</span></div>
+
+    <div id="loginStep1">
+      <button class="primary-btn" id="btnCreateBlock">Criar bloco novo</button>
+      <div class="login-divider">ou entre com codigo</div>
+      <input type="text" id="loginCode" class="mono-input" placeholder="Ex: A7X9K2" maxlength="6" autocomplete="off">
+      <button class="primary-btn login-btn-secondary" id="btnJoinBlock">Entrar</button>
+    </div>
+
+    <div id="loginStep2" style="display:none;">
+      <div class="login-created-label">Bloco criado!</div>
+      <p class="login-desc">Use este codigo em outros dispositivos:</p>
+      <div class="login-code-display" id="loginGeneratedCode">------</div>
+      <button class="primary-btn login-btn-copy" id="btnCopyCode">Copiar codigo</button>
+      <button class="primary-btn login-btn-start" id="btnStartUsing">Comecar a usar</button>
+    </div>
+
+  </div>
+</div>
+
+<div id="app" style="display:none;">
 
   <div class="topbar">
     <div class="brand">divide<span>ai</span></div>
@@ -184,6 +208,9 @@
   </div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

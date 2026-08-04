@@ -1,12 +1,16 @@
-﻿const CACHE_NAME = 'divideai-v1';
+﻿const CACHE_NAME = 'divideai-v2';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
   '/css/styles.css',
   '/js/app.js',
+  '/firebase-config.js',
   '/manifest.json',
   '/icons/icon-192.png',
-  '/icons/icon-512.png'
+  '/icons/icon-512.png',
+  'https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js',
+  'https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js',
+  'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap'
 ];
 
 self.addEventListener('install', (event) => {

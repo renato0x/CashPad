@@ -7,26 +7,127 @@
 
   let state = { people: [], expenses: [] };
   let form = { editingId: null, mode: 'simples', participants: new Set(), items: [], payer: YOU_ID };
+  let db = null;
+  let unsubscribe = null;
 
-  // ---------- storage (localStorage) ----------
-  function load(){
-    try{
-      const p = localStorage.getItem('divideai:people');
-      state.people = p ? JSON.parse(p) : [];
-    }catch(e){ state.people = []; }
-    try{
-      const ex = localStorage.getItem('divideai:expenses');
-      state.expenses = ex ? JSON.parse(ex) : [];
-    }catch(e){ state.expenses = []; }
-    renderAll();
+  // ---------- firebase init ----------
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+  db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+
+  // ---------- login ----------
+  function getAccessCode(){ return localStorage.getItem('divideai:code'); }
+  function setAccessCode(code){ localStorage.setItem('divideai:code', code); }
+
+  function generateCode(){
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for(let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    return code;
   }
+
+  function showLogin(){
+    document.getElementById('screenLogin').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('loginStep1').style.display = '';
+    document.getElementById('loginStep2').style.display = 'none';
+  }
+  function hideLogin(){
+    document.getElementById('screenLogin').style.display = 'none';
+    document.getElementById('app').style.display = '';
+  }
+
+  // criar bloco novo
+  document.getElementById('btnCreateBlock').addEventListener('click', async () => {
+    const code = generateCode();
+    try{
+      await docRef(code).set({ people: [], expenses: [] });
+      setAccessCode(code);
+      document.getElementById('loginGeneratedCode').textContent = code;
+      document.getElementById('loginStep1').style.display = 'none';
+      document.getElementById('loginStep2').style.display = '';
+    }catch(e){
+      toast('Erro ao criar bloco. Tente novamente.');
+    }
+  });
+
+  // copiar codigo
+  document.getElementById('btnCopyCode').addEventListener('click', () => {
+    const code = document.getElementById('loginGeneratedCode').textContent;
+    navigator.clipboard.writeText(code).then(() => toast('Codigo copiado!'));
+  });
+  document.getElementById('loginGeneratedCode').addEventListener('click', () => {
+    const code = document.getElementById('loginGeneratedCode').textContent;
+    navigator.clipboard.writeText(code).then(() => toast('Codigo copiado!'));
+  });
+
+  // entrar com codigo
+  document.getElementById('btnJoinBlock').addEventListener('click', async () => {
+    const code = document.getElementById('loginCode').value.trim().toUpperCase();
+    if(!code){ toast('Digite um codigo'); return; }
+    try{
+      const snap = await docRef(code).get();
+      if(!snap.exists){
+        toast('Codigo nao encontrado');
+        return;
+      }
+      setAccessCode(code);
+      hideLogin();
+      initFirestore(code);
+    }catch(e){
+      toast('Erro ao buscar bloco');
+    }
+  });
+  document.getElementById('loginCode').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('btnJoinBlock').click(); });
+
+  // começar a usar
+  document.getElementById('btnStartUsing').addEventListener('click', () => {
+    hideLogin();
+    initFirestore(getAccessCode());
+  });
+
+  // ---------- firestore storage ----------
+  function docRef(code){ return db.collection('users').doc(code); }
+
+  function initFirestore(code){
+    if(unsubscribe) unsubscribe();
+    unsubscribe = docRef(code).onSnapshot(snap => {
+      if(snap.exists){
+        const data = snap.data();
+        state.people = data.people || [];
+        state.expenses = data.expenses || [];
+      } else {
+        state.people = [];
+        state.expenses = [];
+        docRef(code).set({ people: [], expenses: [] });
+      }
+      renderAll();
+    }, err => {
+      console.error('Firestore error:', err);
+      toast('Erro ao sincronizar dados');
+    });
+  }
+
   function savePeople(){
-    try{ localStorage.setItem('divideai:people', JSON.stringify(state.people)); }
-    catch(e){ toast('Nao foi possivel salvar as pessoas'); }
+    const code = getAccessCode();
+    if(!code || !db) return;
+    docRef(code).set({ people: state.people, expenses: state.expenses }, { merge: true })
+      .catch(() => toast('Nao foi possivel salvar as pessoas'));
   }
   function saveExpenses(){
-    try{ localStorage.setItem('divideai:expenses', JSON.stringify(state.expenses)); }
-    catch(e){ toast('Nao foi possivel salvar o gasto'); }
+    const code = getAccessCode();
+    if(!code || !db) return;
+    docRef(code).set({ people: state.people, expenses: state.expenses }, { merge: true })
+      .catch(() => toast('Nao foi possivel salvar o gasto'));
+  }
+
+  // ---------- init ----------
+  const savedCode = getAccessCode();
+  if(savedCode){
+    hideLogin();
+    initFirestore(savedCode);
+  } else {
+    showLogin();
   }
 
   function toast(msg){
@@ -491,8 +592,6 @@
   document.getElementById('btnWhatsAppShare').addEventListener('click', (e) => {
     closeScreen('screenShare');
   });
-
-  load();
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js')
