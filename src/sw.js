@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'divideai-v2';
+﻿const CACHE_NAME = 'divideai-msgi441g';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
@@ -17,8 +17,13 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => cache.addAll(PRECACHE_URLS))
-      .then(() => self.skipWaiting())
   );
+});
+
+self.addEventListener('message', (event) => {
+  if(event.data && event.data.type === 'SKIP_WAITING'){
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('activate', (event) => {
@@ -32,22 +37,42 @@ self.addEventListener('activate', (event) => {
         );
       })
       .then(() => self.clients.claim())
+      .then(() => self.clients.matchAll())
+      .then((clients) => {
+        clients.forEach((client) => {
+          client.postMessage({type: 'SW_UPDATED'});
+        });
+      })
   );
 });
 
 self.addEventListener('fetch', (event) => {
+  // Skip non-GET requests
+  if (event.request.method !== 'GET') return;
+
   event.respondWith(
     caches.match(event.request)
       .then((cached) => {
-        if (cached) return cached;
-        return fetch(event.request).then((response) => {
-          if (!response || response.status !== 200) return response;
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          return response;
-        });
+        // Return cached version, but also fetch update in background
+        const fetchPromise = fetch(event.request)
+          .then((response) => {
+            if (!response || response.status !== 200 || response.type !== 'basic') {
+              return response;
+            }
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+            return response;
+          })
+          .catch(() => {
+            // Network failed, return cached if available
+            return cached;
+          });
+
+        // Return cached immediately if available, otherwise wait for fetch
+        return cached || fetchPromise;
       })
       .catch(() => {
+        // If both cache and network fail, return offline page for navigation
         if (event.request.destination === 'document') {
           return caches.match('/index.html');
         }
