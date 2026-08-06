@@ -4,9 +4,15 @@
       <stop offset="0%" stop-color="#EFEBE2"/>
       <stop offset="100%" stop-color="#E4DECF"/>
     </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2F7A4D"/>
+      <stop offset="100%" stop-color="#1F5A35"/>
+    </linearGradient>
   </defs>
+  <!-- Background -->
   <rect width="512" height="512" rx="96" fill="url(#bg)"/>
   <rect x="0" y="0" width="512" height="512" rx="96" fill="none" stroke="#D8D2C0" stroke-width="2"/>
+  <!-- Notepad lines -->
   <line x1="60" y1="80" x2="452" y2="80" stroke="#D8D2C0" stroke-width="1.5"/>
   <line x1="60" y1="130" x2="452" y2="130" stroke="#D8D2C0" stroke-width="1.5"/>
   <line x1="60" y1="180" x2="452" y2="180" stroke="#D8D2C0" stroke-width="1.5"/>
@@ -15,5 +21,6 @@
   <line x1="60" y1="330" x2="452" y2="330" stroke="#D8D2C0" stroke-width="1.5"/>
   <line x1="60" y1="380" x2="452" y2="380" stroke="#D8D2C0" stroke-width="1.5"/>
   <line x1="60" y1="430" x2="452" y2="430" stroke="#D8D2C0" stroke-width="1.5"/>
-  <text x="256" y="340" text-anchor="middle" font-family="'IBM Plex Mono', 'Courier New', monospace" font-weight="700" font-size="300" fill="#4B5346" letter-spacing="-10">$</text>
+  <!-- Dollar sign -->
+  <text x="256" y="340" text-anchor="middle" font-family="'IBM Plex Mono', 'Courier New', monospace" font-weight="700" font-size="300" fill="url(#accent)" letter-spacing="-10">$</text>
 </svg>

@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'cashpad-mshsvyjz';
+﻿const CACHE_NAME = 'cashpad-msht3q50';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
