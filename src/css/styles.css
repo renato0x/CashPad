@@ -179,13 +179,13 @@ body.offline-on #app{
   position:fixed; bottom:32px; left:50%;
   transform: translateX(calc(-50% + 150px));
   width:58px; height:58px; border-radius:50%;
-  background: var(--credit); color: var(--paper);
+  background: #1A5C3A; color: var(--paper);
   border:none; cursor:pointer;
   display:flex; align-items:center; justify-content:center;
-  box-shadow: 0 10px 24px -8px rgba(47,122,77,0.45);
+  box-shadow: 0 10px 24px -8px rgba(26,92,58,0.45);
   z-index:20;
 }
-.fab:hover{ background:#256940; }
+.fab:hover{ background:#144A2E; }
 
 /* ---------- Bottom nav ---------- */
 .bottomnav{
