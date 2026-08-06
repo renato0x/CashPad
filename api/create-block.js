@@ -50,8 +50,6 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: 'Device ID invalido' });
     }
 
-    const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
-
     const now = Date.now();
     const windowStart = new Date(now - RATE_LIMIT_WINDOW_MS);
 
@@ -77,7 +75,6 @@ module.exports = async function handler(req, res) {
     if (sorted.length === 0) {
       await db.collection(LOG_COLLECTION).add({
         code,
-        ip,
         deviceId,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
@@ -100,7 +97,6 @@ module.exports = async function handler(req, res) {
       await existingDoc.ref.delete();
       await db.collection(LOG_COLLECTION).add({
         code,
-        ip,
         deviceId,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
@@ -133,7 +129,6 @@ module.exports = async function handler(req, res) {
 
     await db.collection(LOG_COLLECTION).add({
       code,
-      ip,
       deviceId,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
