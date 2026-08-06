@@ -51,8 +51,8 @@
   } catch(e) { console.warn('App Check:', e.message); }
 
   // ---------- login ----------
-  function getAccessCode(){ return localStorage.getItem('divideai:code'); }
-  function setAccessCode(code){ localStorage.setItem('divideai:code', code); }
+  function getAccessCode(){ return localStorage.getItem('cashpad:code'); }
+  function setAccessCode(code){ localStorage.setItem('cashpad:code', code); }
 
   function generateCode(){
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -940,7 +940,7 @@
       }
     });
 
-    let msg = '*DivideAi - Resumo de gastos*\n\n';
+    let msg = '*CashPad - Resumo de gastos*\n\n';
     msg += 'Opa, ' + personNameVal + '! Segue o resumo dos gastos:\n\n';
 
     let receiveTotal = 0, paidTotal = 0;
@@ -1039,8 +1039,8 @@
   document.getElementById('btnLogout').addEventListener('click', () => {
     if(!confirm('Sair deste bloco?')) return;
     if(unsubscribe) unsubscribe();
-    localStorage.removeItem('divideai:code');
-    localStorage.removeItem('divideai:theme');
+    localStorage.removeItem('cashpad:code');
+    localStorage.removeItem('cashpad:theme');
     document.documentElement.classList.remove('dark');
     state = { people: [], expenses: [], settlements: [] };
     closeScreen('screenInfo');
@@ -1155,7 +1155,7 @@
       btn.setAttribute('aria-checked', isDark);
     }
     if(save){
-      localStorage.setItem('divideai:theme', theme);
+      localStorage.setItem('cashpad:theme', theme);
       const code = getAccessCode();
       if(code && db){
         docRef(code).set({ theme }, { merge: true }).catch(e => console.warn('Theme save:', e.code));
@@ -1166,7 +1166,7 @@
     const isDark = document.documentElement.classList.toggle('dark');
     const theme = isDark ? 'dark' : 'light';
     document.getElementById('btnToggleDark').setAttribute('aria-checked', isDark);
-    localStorage.setItem('divideai:theme', theme);
+    localStorage.setItem('cashpad:theme', theme);
     const code = getAccessCode();
     if(code && db){
       docRef(code).set({ theme }, { merge: true }).catch(e => console.warn('Theme save:', e.code));
@@ -1174,7 +1174,7 @@
   }
   document.getElementById('btnToggleDark').addEventListener('click', toggleDarkMode);
   function initDarkMode(){
-    const saved = localStorage.getItem('divideai:theme');
+    const saved = localStorage.getItem('cashpad:theme');
     if(saved){
       applyTheme(saved, false);
     }
@@ -1183,8 +1183,8 @@
 
   // ---------- First-entry guide ----------
   function showFirstGuide(){
-    if(localStorage.getItem('divideai:guided')) return;
-    localStorage.setItem('divideai:guided', '1');
+    if(localStorage.getItem('cashpad:guided')) return;
+    localStorage.setItem('cashpad:guided', '1');
     setTimeout(() => {
       toast('Bem-vindo! Toque em + para adicionar seu primeiro gasto. Acesse Saldos para ver quem deve.', null);
       const t = document.getElementById('toast');

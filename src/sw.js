@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'divideai-mshs3ppr';
+﻿const CACHE_NAME = 'cashpad-mshse8fz';
 const PRECACHE_URLS = [
   '/',
   '/index.html',

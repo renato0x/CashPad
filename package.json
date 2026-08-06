@@ -1,5 +1,5 @@
 {
-  "name": "divideai",
+  "name": "cashpad",
   "version": "1.0.0",
   "description": "PWA para dividir gastos entre amigos e grupos de forma simples e offline-first",
   "private": true,

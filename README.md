@@ -1,8 +1,8 @@
-# DivideAi
+# CashPad
 
 Dividir gastos entre amigos e grupos de forma simples, rapida e offline-first.
 
-**Live:** [divideaiapp.vercel.app](https://divideaiapp.vercel.app)
+**Live:** [cashpad.vercel.app](https://cashpad.vercel.app)
 
 ---
 
@@ -24,7 +24,7 @@ PWA mobile-first para anotar despesas, dividir contas e calcular saldos entre pe
 
 ## Como usar
 
-1. Acesse [divideaiapp.vercel.app](https://divideaiapp.vercel.app)
+1. Acesse [cashpad.vercel.app](https://cashpad.vercel.app)
 2. Crie um bloco novo (gera um codigo de 6 caracteres)
 3. Compartilhe o codigo com seus amigos
 4. Adicione pessoas, registre gastos e acompanhe os saldos
@@ -41,7 +41,7 @@ PWA mobile-first para anotar despesas, dividir contas e calcular saldos entre pe
 ## Estrutura do projeto
 
 ```
-DividiAI/
+CashPad/
 ├── package.json          # Scripts de deploy
 ├── predeploy.js          # Bump da versao do SW antes de cada deploy
 ├── firebase.json         # Configuracao do Firebase

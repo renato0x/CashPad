@@ -15,5 +15,5 @@
   <line x1="60" y1="330" x2="452" y2="330" stroke="#D8D2C0" stroke-width="1.5"/>
   <line x1="60" y1="380" x2="452" y2="380" stroke="#D8D2C0" stroke-width="1.5"/>
   <line x1="60" y1="430" x2="452" y2="430" stroke="#D8D2C0" stroke-width="1.5"/>
-  <text x="256" y="340" text-anchor="middle" font-family="'IBM Plex Mono', 'Courier New', monospace" font-weight="700" font-size="300" fill="#4B5346" letter-spacing="-10">d</text>
+  <text x="256" y="340" text-anchor="middle" font-family="'IBM Plex Mono', 'Courier New', monospace" font-weight="700" font-size="300" fill="#4B5346" letter-spacing="-10">$</text>
 </svg>
