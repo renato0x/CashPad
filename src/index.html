@@ -95,18 +95,55 @@
   </div>
 </div>
 
-<!-- Modal: deletar bloco antigo para criar novo -->
+<!-- Modal: bloco existente encontrado -->
 <div class="screen" id="screenConfirmDelete" style="display:none;">
-  <div class="card" style="width:90%;max-width:400px;">
-    <h3 class="screen-title" style="padding:0;">Bloco existente</h3>
-    <p style="margin:12px 0 8px;">Voce ja tem um bloco ativo. Para criar um novo, o bloco atual sera apagado:</p>
-    <div style="background:var(--surface,#f5f5f0);border-radius:10px;padding:12px;margin:12px 0;">
-      <div style="font-weight:700;font-family:'IBM Plex Mono',monospace;letter-spacing:4px;text-align:center;font-size:18px;" id="confirmDeleteCode"></div>
-      <div class="helper-text" id="confirmDeleteDate" style="text-align:center;"></div>
+  <div class="screen-header">
+    <button class="icon-btn" id="btnConfirmDeleteCancel" aria-label="Voltar">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <div class="screen-title">Bloco existente</div>
+  </div>
+  <div class="screen-body">
+    <div class="receipt" style="margin-top:8px;">
+      <div class="eyebrow">identificado</div>
+      <div class="login-code-display" id="confirmDeleteCode" style="font-size:28px;margin:8px 0 4px;">------</div>
+      <div class="helper-text" id="confirmDeleteDate" style="text-align:center;margin:0 0 16px;"></div>
+      <hr class="divider-dashed">
+      <p style="font-size:14px;color:var(--ink);margin:16px 0 0;line-height:1.6;">
+        Identificamos um bloco de gastos ja existente neste dispositivo.
+      </p>
+      <p style="font-size:13.5px;color:var(--ink-soft);margin:8px 0 0;line-height:1.5;">
+        Deseja entrar nele ou criar um novo?
+      </p>
     </div>
-    <div style="display:flex;gap:8px;">
-      <button class="secondary" id="btnConfirmDeleteCancel" style="flex:1;">Cancelar</button>
-      <button id="btnConfirmDeleteProceed" style="flex:1;">Apagar e criar</button>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:20px;">
+      <button class="primary-btn" id="btnEnterExisting" style="width:100%;">Entrar no bloco</button>
+      <button class="ghost-btn" id="btnConfirmDeleteProceed" style="width:100%;color:var(--danger);">Criar novo bloco</button>
+    </div>
+  </div>
+
+  <!-- Step 2: confirmar delecao -->
+  <div id="deleteStep2" style="display:none;position:absolute;inset:0;background:var(--paper);z-index:5;overflow-y:auto;">
+    <div class="screen-header">
+      <button class="icon-btn" id="btnDeleteStep2Back" aria-label="Voltar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <div class="screen-title">Confirmar exclusao</div>
+    </div>
+    <div class="screen-body">
+      <div class="receipt" style="margin-top:8px;">
+        <p style="font-size:14px;color:var(--ink);line-height:1.6;">
+          Criar um novo bloco ira <strong style="color:var(--danger);">apagar permanentemente</strong> o bloco atual e todos os seus dados.
+        </p>
+        <p style="font-size:13.5px;color:var(--ink-soft);margin:10px 0 0;line-height:1.5;">
+          Esta acao nao pode ser desfeita. Para confirmar, digite o codigo do bloco abaixo:
+        </p>
+        <div style="font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:20px;letter-spacing:0.15em;text-align:center;margin:18px 0 12px;color:var(--ink);" id="deleteStep2Code"></div>
+        <input type="text" id="deleteStep2Input" class="mono-input" placeholder="Digite o codigo" maxlength="6" autocomplete="off" style="text-align:center;font-size:18px;letter-spacing:0.1em;">
+      </div>
+      <div style="display:flex;gap:10px;margin-top:20px;">
+        <button class="ghost-btn" id="btnDeleteStep2Confirm" style="flex:1;color:var(--danger);" disabled>Apagar e criar</button>
+      </div>
     </div>
   </div>
 </div>

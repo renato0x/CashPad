@@ -54,6 +54,18 @@
   function getAccessCode(){ return localStorage.getItem('cashpad:code'); }
   function setAccessCode(code){ localStorage.setItem('cashpad:code', code); }
 
+  function getDeviceId(){
+    let id = localStorage.getItem('cashpad:deviceId');
+    if(!id){
+      id = crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+        const r = Math.random() * 16 | 0;
+        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+      });
+      localStorage.setItem('cashpad:deviceId', id);
+    }
+    return id;
+  }
+
   function generateCode(){
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let code = '';
@@ -110,19 +122,25 @@
       const res = await fetch('/api/create-block', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code })
+        body: JSON.stringify({ code, deviceId: getDeviceId() })
       });
       const data = await res.json();
 
       if (data.needsConfirm) {
         btn.classList.remove('loading'); btn.disabled = false;
         const confirmed = await showDeleteConfirmation(data.existing);
+        if (confirmed === 'join') {
+          setAccessCode(data.existing.code);
+          hideLogin();
+          initFirestore(data.existing.code);
+          return;
+        }
         if (!confirmed) return;
         btn.classList.add('loading'); btn.disabled = true;
         const res2 = await fetch('/api/create-block', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code, confirmDelete: data.existing.code })
+          body: JSON.stringify({ code, confirmDelete: data.existing.code, deviceId: getDeviceId() })
         });
         const data2 = await res2.json();
         if (!res2.ok) throw new Error(data2.error);
@@ -141,31 +159,59 @@
     }
   });
 
-  // modal de confirmacao: deletar bloco antigo
+  // modal de confirmacao: bloco existente encontrado
   function showDeleteConfirmation(existing) {
     return new Promise(resolve => {
       const el = document.getElementById('screenConfirmDelete');
+      const step2 = document.getElementById('deleteStep2');
+      const input = document.getElementById('deleteStep2Input');
+      const confirmBtn = document.getElementById('btnDeleteStep2Confirm');
       document.getElementById('confirmDeleteCode').textContent = existing.code;
+      document.getElementById('deleteStep2Code').textContent = existing.code;
       const d = existing.createdAt ? new Date(existing.createdAt) : null;
       document.getElementById('confirmDeleteDate').textContent = d
         ? 'Criado em: ' + d.toLocaleDateString('pt-BR', {day:'2-digit', month:'short', year:'numeric'})
         : '';
+
+      step2.style.display = 'none';
+      input.value = '';
+      confirmBtn.disabled = true;
       el.style.display = 'flex';
       requestAnimationFrame(() => el.classList.add('open'));
 
       function cleanup(result) {
         el.classList.remove('open');
         setTimeout(() => { el.style.display = ''; }, 300);
-        document.getElementById('btnConfirmDeleteProceed').removeEventListener('click', onProceed);
+        step2.style.display = 'none';
+        document.getElementById('btnEnterExisting').removeEventListener('click', onEnter);
+        document.getElementById('btnConfirmDeleteProceed').removeEventListener('click', onProceedStep1);
         document.getElementById('btnConfirmDeleteCancel').removeEventListener('click', onCancel);
+        document.getElementById('btnDeleteStep2Back').removeEventListener('click', onStep2Back);
+        document.getElementById('btnDeleteStep2Confirm').removeEventListener('click', onConfirmFinal);
+        input.removeEventListener('input', onInputChange);
         el.removeEventListener('click', onOverlay);
         resolve(result);
       }
-      function onProceed() { cleanup(true); }
+
+      function onEnter() { cleanup('join'); }
+      function onProceedStep1() {
+        step2.style.display = '';
+        input.focus();
+      }
+      function onStep2Back() { step2.style.display = 'none'; }
+      function onConfirmFinal() { cleanup(true); }
       function onCancel() { cleanup(false); }
       function onOverlay(e) { if (e.target === el) cleanup(false); }
-      document.getElementById('btnConfirmDeleteProceed').addEventListener('click', onProceed);
+      function onInputChange() {
+        confirmBtn.disabled = input.value.trim().toUpperCase() !== existing.code;
+      }
+
+      document.getElementById('btnEnterExisting').addEventListener('click', onEnter);
+      document.getElementById('btnConfirmDeleteProceed').addEventListener('click', onProceedStep1);
       document.getElementById('btnConfirmDeleteCancel').addEventListener('click', onCancel);
+      document.getElementById('btnDeleteStep2Back').addEventListener('click', onStep2Back);
+      document.getElementById('btnDeleteStep2Confirm').addEventListener('click', onConfirmFinal);
+      input.addEventListener('input', onInputChange);
       el.addEventListener('click', onOverlay);
     });
   }

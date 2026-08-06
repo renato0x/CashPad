@@ -1,11 +1,21 @@
 const admin = require('firebase-admin');
 
+function parsePrivateKey(raw) {
+  if (!raw) return undefined;
+  let key = raw.trim();
+  key = key.replace(/^"|"$/g, '');
+  key = key.replace(/\\n/g, '\n');
+
+  if (!key.includes('-----BEGIN')) return undefined;
+  return key;
+}
+
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      projectId: process.env.FIREBASE_PROJECT_ID?.trim(),
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL?.trim(),
+      privateKey: parsePrivateKey(process.env.FIREBASE_PRIVATE_KEY),
     }),
   });
 }
@@ -13,7 +23,6 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 const LOG_COLLECTION = 'block_creation_log';
 const USERS_COLLECTION = 'users';
-const MAX_BLOCKS_PER_IP = 1;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const MAX_CREATES_PER_WINDOW = 5;
 
@@ -31,10 +40,14 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { code, confirmDelete } = req.body;
+    const { code, confirmDelete, deviceId } = req.body;
 
     if (!code || typeof code !== 'string' || !/^[A-Z0-9]{6}$/.test(code)) {
       return res.status(400).json({ error: 'Codigo invalido' });
+    }
+
+    if (!deviceId || typeof deviceId !== 'string' || deviceId.length < 10) {
+      return res.status(400).json({ error: 'Device ID invalido' });
     }
 
     const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
@@ -43,7 +56,7 @@ module.exports = async function handler(req, res) {
     const windowStart = new Date(now - RATE_LIMIT_WINDOW_MS);
 
     const recentLogs = await db.collection(LOG_COLLECTION)
-      .where('ip', '==', ip)
+      .where('deviceId', '==', deviceId)
       .where('createdAt', '>', admin.firestore.Timestamp.fromDate(new Date(windowStart)))
       .get();
 
@@ -52,15 +65,20 @@ module.exports = async function handler(req, res) {
     }
 
     const existingBlocks = await db.collection(LOG_COLLECTION)
-      .where('ip', '==', ip)
-      .orderBy('createdAt', 'asc')
-      .limit(1)
+      .where('deviceId', '==', deviceId)
       .get();
 
-    if (existingBlocks.empty) {
+    const sorted = existingBlocks.docs.sort((a, b) => {
+      const tA = a.data().createdAt?.toMillis?.() || 0;
+      const tB = b.data().createdAt?.toMillis?.() || 0;
+      return tA - tB;
+    });
+
+    if (sorted.length === 0) {
       await db.collection(LOG_COLLECTION).add({
         code,
         ip,
+        deviceId,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
@@ -74,8 +92,26 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    const existingDoc = existingBlocks.docs[0];
+    const existingDoc = sorted[0];
     const existingData = existingDoc.data();
+
+    const userSnap = await db.collection(USERS_COLLECTION).doc(existingData.code).get();
+    if (!userSnap.exists) {
+      await existingDoc.ref.delete();
+      await db.collection(LOG_COLLECTION).add({
+        code,
+        ip,
+        deviceId,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      await db.collection(USERS_COLLECTION).doc(code).set({
+        people: [],
+        expenses: [],
+        settlements: [],
+        theme: 'light',
+      });
+      return res.status(200).json({ success: true });
+    }
 
     if (!confirmDelete) {
       return res.status(200).json({
@@ -98,6 +134,7 @@ module.exports = async function handler(req, res) {
     await db.collection(LOG_COLLECTION).add({
       code,
       ip,
+      deviceId,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
@@ -111,7 +148,7 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ success: true });
 
   } catch (error) {
-    console.error('Create block error:', error);
-    return res.status(500).json({ error: 'Erro interno do servidor' });
+    console.error('Create block error:', error.message, error.stack);
+    return res.status(500).json({ error: 'Erro interno do servidor', detail: error.message });
   }
 };
