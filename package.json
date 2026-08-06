@@ -8,5 +8,8 @@
     "deploy": "npm run predeploy && vercel --prod --yes --scope f0ckthepattern-4028s-projects"
   },
   "keywords": ["gastos", "divisao", "pwa", "offline", "firebase"],
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "firebase-admin": "^12.0.0"
+  }
 }

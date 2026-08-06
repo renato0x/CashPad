@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'divideai-msgi441g';
+﻿const CACHE_NAME = 'divideai-mshs3ppr';
 const PRECACHE_URLS = [
   '/',
   '/index.html',

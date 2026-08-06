@@ -43,6 +43,13 @@
   db = firebase.firestore();
   db.enablePersistence({ synchronizeTabs: true }).catch(e => console.warn('Persistence:', e.code));
 
+  // ---------- App Check (Debug Provider) ----------
+  try {
+    const appCheck = firebase.appCheck();
+    appCheck.activate('6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI', true);
+    console.log('App Check ativado (Debug Provider)');
+  } catch(e) { console.warn('App Check:', e.message); }
+
   // ---------- login ----------
   function getAccessCode(){ return localStorage.getItem('divideai:code'); }
   function setAccessCode(code){ localStorage.setItem('divideai:code', code); }
@@ -100,17 +107,68 @@
     const code = generateCode();
     btn.classList.add('loading'); btn.disabled = true;
     try{
-      await docRef(code).set({ people: [], expenses: [] });
+      const res = await fetch('/api/create-block', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code })
+      });
+      const data = await res.json();
+
+      if (data.needsConfirm) {
+        btn.classList.remove('loading'); btn.disabled = false;
+        const confirmed = await showDeleteConfirmation(data.existing);
+        if (!confirmed) return;
+        btn.classList.add('loading'); btn.disabled = true;
+        const res2 = await fetch('/api/create-block', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, confirmDelete: data.existing.code })
+        });
+        const data2 = await res2.json();
+        if (!res2.ok) throw new Error(data2.error);
+      } else if (!res.ok) {
+        throw new Error(data.error);
+      }
+
       setAccessCode(code);
       document.getElementById('loginGeneratedCode').textContent = code;
       document.getElementById('loginStep1').style.display = 'none';
       document.getElementById('loginStep2').style.display = '';
     }catch(e){
-      toast('Erro ao criar bloco. Tente novamente.');
+      toast(e.message || 'Erro ao criar bloco. Tente novamente.');
     } finally {
       btn.classList.remove('loading'); btn.disabled = false;
     }
   });
+
+  // modal de confirmacao: deletar bloco antigo
+  function showDeleteConfirmation(existing) {
+    return new Promise(resolve => {
+      const el = document.getElementById('screenConfirmDelete');
+      document.getElementById('confirmDeleteCode').textContent = existing.code;
+      const d = existing.createdAt ? new Date(existing.createdAt) : null;
+      document.getElementById('confirmDeleteDate').textContent = d
+        ? 'Criado em: ' + d.toLocaleDateString('pt-BR', {day:'2-digit', month:'short', year:'numeric'})
+        : '';
+      el.style.display = 'flex';
+      requestAnimationFrame(() => el.classList.add('open'));
+
+      function cleanup(result) {
+        el.classList.remove('open');
+        setTimeout(() => { el.style.display = ''; }, 300);
+        document.getElementById('btnConfirmDeleteProceed').removeEventListener('click', onProceed);
+        document.getElementById('btnConfirmDeleteCancel').removeEventListener('click', onCancel);
+        el.removeEventListener('click', onOverlay);
+        resolve(result);
+      }
+      function onProceed() { cleanup(true); }
+      function onCancel() { cleanup(false); }
+      function onOverlay(e) { if (e.target === el) cleanup(false); }
+      document.getElementById('btnConfirmDeleteProceed').addEventListener('click', onProceed);
+      document.getElementById('btnConfirmDeleteCancel').addEventListener('click', onCancel);
+      el.addEventListener('click', onOverlay);
+    });
+  }
 
   // copiar codigo
   document.getElementById('btnCopyCode').addEventListener('click', () => {

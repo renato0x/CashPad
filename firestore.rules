@@ -2,7 +2,15 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /users/{userId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasAll(['people', 'expenses'])
+                    && request.resource.data.size() < 1048576;
+      allow update: if request.resource.data.size() < 1048576;
+      allow delete: if false;
+    }
+
+    match /block_creation_log/{logId} {
+      allow read, write: if false;
     }
   }
 }
