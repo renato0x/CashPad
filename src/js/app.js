@@ -708,7 +708,7 @@
         if(form.participants.has(id)){
           form.participants.delete(id);
           form.items.forEach(it => {
-            it.participants = it.participants.filter(p => p !== id);
+            it.participants = (it.participants || []).filter(p => p !== id);
           });
         } else {
           form.participants.add(id);
@@ -792,8 +792,9 @@
     if(!item) return;
     const itemParticipants = new Set(item.participants || []);
     const el = document.getElementById('itemParticipantsChips');
+    const globalSet = form.participants instanceof Set ? form.participants : new Set(form.participants || []);
     const all = [{id: YOU_ID, name: YOU_NAME}, ...state.people]
-      .filter(p => form.participants.has(p.id));
+      .filter(p => globalSet.has(p.id));
     el.innerHTML = all.map(p =>
       '<div class="chip '+(itemParticipants.has(p.id)?'selected':'')+'" data-id="'+p.id+'">'+escapeHtml(p.name)+'</div>'
     ).join('');
@@ -840,6 +841,7 @@
     form.participants = new Set(exp.participants || []);
     form.items = (exp.items||[]).map(it => {
       const item = {...it};
+      if(!item.id) item.id = uid();
       if(!item.participants && item.owner){
         item.participants = item.owner === 'none' ? Array.from(form.participants) : [item.owner];
         delete item.owner;
@@ -896,7 +898,7 @@
       }
     } else {
       items = form.items.filter(it => it.name.trim() && parseBRNumber(it.value) > 0)
-        .map(it => ({name: it.name.trim(), value: parseBRNumber(it.value), participants: it.participants || Array.from(form.participants)}));
+        .map(it => ({id: it.id, name: it.name.trim(), value: parseBRNumber(it.value), participants: it.participants || Array.from(form.participants)}));
       if(!items.length){ toast('Adicione ao menos um item valido'); hasError = true; }
     }
     if(hasError) return;
@@ -1278,10 +1280,11 @@
         showUpdateToast();
       }
       reg.addEventListener('updatefound', () => {
-        if(reg.installing){
-          reg.installing.addEventListener('statechange', () => {
-            if(reg.installing.state === 'installed' && navigator.serviceWorker.controller){
-              swWaiting = reg.installing;
+        const newWorker = reg.installing;
+        if(newWorker){
+          newWorker.addEventListener('statechange', () => {
+            if(newWorker.state === 'installed' && navigator.serviceWorker.controller){
+              swWaiting = newWorker;
               showUpdateToast();
             }
           });
