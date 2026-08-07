@@ -705,8 +705,14 @@
     el.querySelectorAll('.chip').forEach(chip => {
       chip.addEventListener('click', () => {
         const id = chip.dataset.id;
-        if(form.participants.has(id)) form.participants.delete(id);
-        else form.participants.add(id);
+        if(form.participants.has(id)){
+          form.participants.delete(id);
+          form.items.forEach(it => {
+            it.participants = it.participants.filter(p => p !== id);
+          });
+        } else {
+          form.participants.add(id);
+        }
         renderParticipantChips();
         renderItems();
       });
@@ -786,7 +792,8 @@
     if(!item) return;
     const itemParticipants = new Set(item.participants || []);
     const el = document.getElementById('itemParticipantsChips');
-    const all = [{id: YOU_ID, name: YOU_NAME}, ...state.people];
+    const all = [{id: YOU_ID, name: YOU_NAME}, ...state.people]
+      .filter(p => form.participants.has(p.id));
     el.innerHTML = all.map(p =>
       '<div class="chip '+(itemParticipants.has(p.id)?'selected':'')+'" data-id="'+p.id+'">'+escapeHtml(p.name)+'</div>'
     ).join('');
