@@ -2,7 +2,7 @@
 
 Dividir gastos entre amigos e grupos de forma simples, rapida e offline-first.
 
-**Live:** [cashpad.vercel.app](https://cashpad.vercel.app)
+**Live:** [cashpadapp.vercel.app](https://cashpadapp.vercel.app)
 
 ---
 
@@ -24,7 +24,7 @@ PWA mobile-first para anotar despesas, dividir contas e calcular saldos entre pe
 
 ## Como usar
 
-1. Acesse [cashpad.vercel.app](https://cashpad.vercel.app)
+1. Acesse [cashpadapp.vercel.app](https://cashpadapp.vercel.app)
 2. Crie um bloco novo (gera um codigo de 6 caracteres)
 3. Compartilhe o codigo com seus amigos
 4. Adicione pessoas, registre gastos e acompanhe os saldos
