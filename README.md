@@ -72,15 +72,6 @@ CashPad/
 npm run deploy
 ```
 
-O script `predeploy.js` atualiza automaticamente o nome da cache do Service Worker para forcar atualizacao em todos os dispositivos.
-
-## Seguranca
-
-- **Headers HTTP:** HSTS, X-Frame-Options, X-Content-Type-Options, CSP, Referrer-Policy, Permissions-Policy
-- **Firestore Rules:** Leitura e escrita permitidas (app pessoal sem autenticacao)
-- **SRI:** Scripts externos com Subresource Integrity
-- **Acessibilidade:** Labels associados a inputs, navegacao por teclado, roles ARIA, hierarquia de headings
-
 ## Licenca
 
 Projeto pessoal. Todos os direitos reservados.
