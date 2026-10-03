@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'cashpad-murs1800';
+﻿const CACHE_NAME = 'cashpad-murs5wq2';
 const APP_SHELL = [
   '/',
   '/index.html',
