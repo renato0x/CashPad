@@ -14,41 +14,88 @@
   let db = null;
   let unsubscribe = null;
   let isOnline = navigator.onLine;
+  let persistenceAvailable = null;
+  let hasPendingWrites = false;
+  let lastSnapshotFromCache = false;
+  let activeCode = null;
+  let appCheckStarted = false;
 
   // ---------- online/offline detection ----------
-  function updateOnlineStatus(){
-    isOnline = navigator.onLine;
+  function updateConnectionStatus(){
     const banner = document.getElementById('offlineBanner');
+    let message = '';
 
-    if(isOnline){
-      banner.classList.remove('visible');
-    } else {
-      banner.classList.add('visible');
+    if(!isOnline){
+      if(persistenceAvailable === false){
+        message = 'Sem conexao - mantenha o app aberto para nao perder alteracoes';
+      } else if(hasPendingWrites){
+        message = 'Sem conexao - alteracoes salvas neste dispositivo';
+      } else {
+        message = 'Sem conexao - usando dados salvos neste dispositivo';
+      }
+    } else if(hasPendingWrites){
+      message = 'Sincronizando alteracoes...';
+    } else if(lastSnapshotFromCache){
+      message = 'Conexao instavel - usando dados locais';
+    }
+
+    banner.textContent = message;
+    banner.classList.toggle('visible', Boolean(message));
+    if(message){
       const h = banner.scrollHeight || 22;
       document.body.style.setProperty('--banner-h', h + 'px');
+    } else {
+      document.body.style.removeProperty('--banner-h');
     }
     document.body.classList.toggle('offline-on', !isOnline);
   }
+
+  function updateOnlineStatus(){
+    isOnline = navigator.onLine;
+    updateConnectionStatus();
+  }
+
   window.addEventListener('online', () => {
     updateOnlineStatus();
-    toast('Conectado! Sincronizando...');
+    initAppCheck();
+    toast(hasPendingWrites ? 'Conectado! Sincronizando alteracoes...' : 'Conectado novamente');
   });
   window.addEventListener('offline', () => {
     updateOnlineStatus();
-    toast('Sem conexao - dados salvos localmente');
+    toast(persistenceAvailable === false
+      ? 'Sem conexao - mantenha o app aberto'
+      : 'Sem conexao - alteracoes serao sincronizadas depois');
   });
 
   // ---------- firebase init ----------
   firebase.initializeApp(firebaseConfig);
   db = firebase.firestore();
-  db.enablePersistence({ synchronizeTabs: true }).catch(e => console.warn('Persistence:', e.code));
+  const persistenceReady = db.enablePersistence({ synchronizeTabs: true })
+    .then(() => {
+      persistenceAvailable = true;
+      updateConnectionStatus();
+      return true;
+    })
+    .catch(e => {
+      persistenceAvailable = false;
+      console.warn('Persistence:', e.code);
+      updateConnectionStatus();
+      return false;
+    });
 
-  // ---------- App Check (Debug Provider) ----------
-  try {
-    const appCheck = firebase.appCheck();
-    appCheck.activate('6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI', true);
-    console.log('App Check ativado (Debug Provider)');
-  } catch(e) { console.warn('App Check:', e.message); }
+  // ---------- App Check ----------
+  function initAppCheck(){
+    if(appCheckStarted || !navigator.onLine || typeof firebase.appCheck !== 'function') return;
+    try{
+      const appCheck = firebase.appCheck();
+      appCheck.activate('6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI', true);
+      appCheckStarted = true;
+      console.log('App Check ativado');
+    }catch(e){
+      console.warn('App Check:', e.message);
+    }
+  }
+  initAppCheck();
 
   // ---------- login ----------
   function getAccessCode(){ return localStorage.getItem('cashpad:code'); }
@@ -71,6 +118,11 @@
     let code = '';
     for(let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
     return code;
+  }
+
+  function isNetworkError(error){
+    const message = String(error && error.message || '');
+    return !navigator.onLine || error instanceof TypeError || /fetch|network|offline/i.test(message);
   }
 
   function showLogin(){
@@ -101,6 +153,7 @@
     const code = getAccessCode();
     if(!code){ toast('Nenhum bloco salvo'); return; }
     try{
+      await persistenceReady;
       const snap = await docRef(code).get({ source: 'cache' });
       if(!snap.exists){
         toast('Bloco nao encontrado no cache');
@@ -116,6 +169,10 @@
   // criar bloco novo
   document.getElementById('btnCreateBlock').addEventListener('click', async () => {
     const btn = document.getElementById('btnCreateBlock');
+    if(!navigator.onLine){
+      toast('Conecte-se para criar um bloco novo');
+      return;
+    }
     const code = generateCode();
     btn.classList.add('loading'); btn.disabled = true;
     try{
@@ -153,7 +210,7 @@
       document.getElementById('loginStep1').style.display = 'none';
       document.getElementById('loginStep2').style.display = '';
     }catch(e){
-      toast(e.message || 'Erro ao criar bloco. Tente novamente.');
+      toast(isNetworkError(e) ? 'Sem conexao com o servidor. Tente novamente.' : (e.message || 'Erro ao criar bloco. Tente novamente.'));
     } finally {
       btn.classList.remove('loading'); btn.disabled = false;
     }
@@ -233,16 +290,19 @@
     if(!code){ toast('Digite um codigo'); return; }
     btn.classList.add('loading'); btn.disabled = true;
     try{
-      const snap = await docRef(code).get();
+      await persistenceReady;
+      const snap = navigator.onLine
+        ? await docRef(code).get()
+        : await docRef(code).get({ source: 'cache' });
       if(!snap.exists){
-        toast('Codigo nao encontrado');
+        toast(navigator.onLine ? 'Codigo nao encontrado' : 'Este bloco nao esta salvo neste dispositivo');
         return;
       }
       setAccessCode(code);
       hideLogin();
       initFirestore(code);
     }catch(e){
-      toast('Erro ao buscar bloco');
+      toast(navigator.onLine ? 'Erro ao buscar bloco' : 'Conecte-se uma vez para baixar este bloco');
     } finally {
       btn.classList.remove('loading'); btn.disabled = false;
     }
@@ -260,7 +320,13 @@
 
   function initFirestore(code){
     if(unsubscribe) unsubscribe();
-    unsubscribe = docRef(code).onSnapshot(snap => {
+    activeCode = code;
+    unsubscribe = docRef(code).onSnapshot({ includeMetadataChanges: true }, snap => {
+      if(activeCode !== code) return;
+      lastSnapshotFromCache = snap.metadata.fromCache;
+      hasPendingWrites = snap.metadata.hasPendingWrites;
+      updateConnectionStatus();
+
       if(snap.exists){
         const data = snap.data();
         state.people = data.people || [];
@@ -268,49 +334,101 @@
         state.settlements = data.settlements || [];
         if(data.theme) applyTheme(data.theme, false);
       } else {
-        state.people = [];
-        state.expenses = [];
-        state.settlements = [];
-        docRef(code).set({ people: [], expenses: [], settlements: [], theme: 'light' });
+        // A cache miss is not proof that the remote document does not exist.
+        // Never initialize an empty block from an offline/cache-only snapshot.
+        if(snap.metadata.fromCache){
+          return;
+        }
+
+        if(getAccessCode() === code){
+          localStorage.removeItem('cashpad:code');
+          activeCode = null;
+          if(unsubscribe){ unsubscribe(); unsubscribe = null; }
+          showLogin();
+          toast('Este bloco nao existe mais');
+        }
+        return;
       }
       renderAll();
     }, err => {
       console.error('Firestore error:', err);
-      toast('Erro ao sincronizar dados');
+      lastSnapshotFromCache = true;
+      updateConnectionStatus();
+      toast(navigator.onLine ? 'Erro ao sincronizar dados' : 'Usando os dados salvos neste dispositivo');
     });
   }
 
+  function stateSnapshot(){
+    return JSON.parse(JSON.stringify({
+      people: state.people,
+      expenses: state.expenses,
+      settlements: state.settlements
+    }));
+  }
+
+  function queueStateWrite(failureMessage){
+    const code = getAccessCode();
+    if(!code || !db){
+      toast(failureMessage);
+      return Promise.resolve(false);
+    }
+    hasPendingWrites = true;
+    updateConnectionStatus();
+    const write = docRef(code).set(stateSnapshot(), { merge: true });
+    write.catch(error => {
+      console.error(failureMessage, error);
+      toast(failureMessage);
+    });
+    return write;
+  }
+
   function savePeople(){
-    const code = getAccessCode();
-    if(!code || !db) return;
-    docRef(code).set({ people: state.people, expenses: state.expenses, settlements: state.settlements }, { merge: true })
-      .catch(() => toast('Nao foi possivel salvar as pessoas'));
+    queueStateWrite('Nao foi possivel salvar as pessoas');
   }
-  let savingExpenses = false;
+
   function saveExpenses(){
-    const code = getAccessCode();
-    if(!code || !db || savingExpenses) return;
-    savingExpenses = true;
-    docRef(code).set({ people: state.people, expenses: state.expenses, settlements: state.settlements }, { merge: true })
-      .then(() => { savingExpenses = false; })
-      .catch(() => { savingExpenses = false; toast('Nao foi possivel salvar o gasto'); });
+    queueStateWrite('Nao foi possivel salvar o gasto');
   }
-  function saveSettlements(){
+
+  function saveSettlement(payment, remove = false){
     const code = getAccessCode();
-    if(!code || !db) return;
-    docRef(code).set({ people: state.people, expenses: state.expenses, settlements: state.settlements }, { merge: true })
-      .catch(() => toast('Nao foi possivel salvar o pagamento'));
+    if(!code || !db) return Promise.reject(new Error('Banco de dados indisponivel'));
+    const operation = remove
+      ? firebase.firestore.FieldValue.arrayRemove(payment)
+      : firebase.firestore.FieldValue.arrayUnion(payment);
+    hasPendingWrites = true;
+    updateConnectionStatus();
+    return docRef(code).update({ settlements: operation });
   }
 
   // ---------- init ----------
-  const savedCode = getAccessCode();
-  if(savedCode){
+  async function bootstrap(){
+    await persistenceReady;
+    updateOnlineStatus();
+    const savedCode = getAccessCode();
+
+    if(!savedCode){
+      showLogin();
+      return;
+    }
+
+    if(!navigator.onLine){
+      try{
+        const cached = await docRef(savedCode).get({ source: 'cache' });
+        if(!cached.exists) throw new Error('cache-miss');
+      }catch(error){
+        showLogin();
+        toast('Conecte-se uma vez para baixar este bloco neste dispositivo');
+        return;
+      }
+    }
+
     hideLogin();
     initFirestore(savedCode);
-  } else {
-    showLogin();
   }
+
   updateOnlineStatus();
+  bootstrap();
 
   let toastTimeout = null;
   function toast(msg, undoFn){
@@ -324,7 +442,10 @@
       const btn = document.createElement('button');
       btn.className = 'toast-undo';
       btn.textContent = 'Desfazer';
-      btn.addEventListener('click', () => { undoFn(); t.classList.remove('show'); });
+      btn.addEventListener('click', async () => {
+        t.classList.remove('show');
+        await undoFn();
+      });
       t.appendChild(btn);
     }
     t.classList.add('show');
@@ -408,7 +529,6 @@
 
   function renderHome(){
     const gross = computeGross();
-    document.getElementById('sumYouOwe').textContent = fmt(gross.youOwe);
     document.getElementById('sumOwedToYou').textContent = fmt(gross.owedToYou);
     const netVal = gross.owedToYou - gross.youOwe;
     const netEl = document.getElementById('netLine');
@@ -458,8 +578,40 @@
   }
 
   // ---------- screens ----------
-  function openScreen(id){ document.getElementById(id).classList.add('open'); }
-  function closeScreen(id){ document.getElementById(id).classList.remove('open'); }
+  function _openScreen(id){
+    const screen = document.getElementById(id);
+    screen.classList.add('open');
+    screen.setAttribute('aria-hidden', 'false');
+    if(id === 'screenInfo') document.getElementById('btnInfo').setAttribute('aria-expanded', 'true');
+  }
+  function _closeScreen(id){
+    const screen = document.getElementById(id);
+    screen.classList.remove('open');
+    screen.setAttribute('aria-hidden', 'true');
+    if(id === 'screenInfo') document.getElementById('btnInfo').setAttribute('aria-expanded', 'false');
+  }
+
+  function closeAllScreens(exceptId){
+    document.querySelectorAll('.screen.open').forEach(screen => {
+      if(screen.id !== exceptId) _closeScreen(screen.id);
+    });
+  }
+
+  function openScreen(id){
+    if (isDesktop) closeAllScreens(id);
+    _openScreen(id);
+    if (isDesktop) {
+      if (id === 'screenBalances') updateSidebarActive('navBalancesSidebar');
+      else if (id === 'screenPeople') updateSidebarActive('navPeopleSidebar');
+      else updateSidebarActive('navHomeSidebar');
+    }
+  }
+  function closeScreen(id){
+    _closeScreen(id);
+    if (isDesktop) {
+      updateSidebarActive('navHomeSidebar');
+    }
+  }
 
   // ---------- people screen ----------
   function renderPeopleScreen(){
@@ -479,10 +631,17 @@
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const id = btn.dataset.id;
-        const usedIn = state.expenses.some(ex => (ex.participants||[]).includes(id) || ex.payer === id || (ex.items||[]).some(it=>it.owner===id));
-        if(usedIn && !confirm('Esta pessoa aparece em gastos existentes. Remover mesmo assim?')) return;
+        const usedInExpenses = state.expenses.some(ex =>
+          (ex.participants || []).includes(id) ||
+          ex.payer === id ||
+          (ex.items || []).some(it => it.owner === id || (it.participants || []).includes(id))
+        );
+        const usedInPayments = (state.settlements || []).some(s => s.from === id || s.to === id);
+        if(usedInExpenses || usedInPayments){
+          toast('Esta pessoa possui movimentacoes e nao pode ser removida');
+          return;
+        }
         state.people = state.people.filter(p=>p.id!==id);
-        state.settlements = state.settlements.filter(s=>s.from!==id && s.to!==id);
         savePeople();
         renderPeopleScreen();
         renderAll();
@@ -510,66 +669,46 @@
   // ---------- balances screen ----------
   function renderBalancesScreen(){
     const gross = computeGross();
-    const credit = [], debit = [];
-    let hasAnyBalance = false;
+    const credit = [];
     state.people.forEach(p => {
       const info = gross.perPerson[p.id];
       const net = info ? info.net : 0;
       if(net > 0.005){
-        hasAnyBalance = true;
-        const hasPayments = (state.settlements || []).some(s => s.from === p.id || s.to === p.id);
-        credit.push({id: p.id, name: p.name, val: net, hasPayments});
-      } else if(net < -0.005){
-        hasAnyBalance = true;
-        debit.push({id: p.id, name: p.name, val: -net});
+        credit.push({id: p.id, name: p.name, val: net});
       }
     });
     const creditEl = document.getElementById('balCredit');
-    const debitEl = document.getElementById('balDebit');
 
-    if(!hasAnyBalance && !state.people.length){
+    if(!state.people.length){
       creditEl.innerHTML = '<div class="empty-state"><div class="big">👥</div><p>Adicione pessoas no menu <b>Pessoas</b> para comecar a dividir gastos.</p></div>';
-      debitEl.innerHTML = '';
       renderPaymentsList();
       return;
     }
-    if(!hasAnyBalance){
+    if(!credit.length){
       creditEl.innerHTML = '<div class="empty-state"><div class="big">✅</div><p>Tudo certo! Nenhum saldo pendente entre as pessoas.</p></div>';
-      debitEl.innerHTML = '';
       renderPaymentsList();
       return;
     }
 
-    creditEl.innerHTML = credit.length ? credit.map(c =>
+    creditEl.innerHTML = credit.map(c =>
       '<div class="split-row">'+
         '<div class="name">'+escapeHtml(c.name)+'</div>'+
         '<div class="amt" style="color:var(--credit)">'+fmt(c.val)+'</div>'+
         '<div class="row-actions">'+
-          (!c.hasPayments ? '<button class="icon-btn pay-btn" data-id="'+c.id+'" data-action="receive" aria-label="Confirmar pagamento de '+escapeHtml(c.name)+'">'+
+          '<button class="icon-btn pay-btn" data-id="'+c.id+'" data-action="receive" aria-label="Confirmar pagamento de '+escapeHtml(c.name)+'">'+
             '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>'+
-          '</button>' : '')+
-          (!c.hasPayments ? '<button class="icon-btn share-btn" data-person="'+escapeHtml(c.name)+'" data-val="'+c.val.toFixed(2)+'" aria-label="Compartilhar com '+escapeHtml(c.name)+'">'+
+          '</button>'+
+          '<button class="icon-btn share-btn" data-person="'+escapeHtml(c.name)+'" data-val="'+c.val.toFixed(2)+'" aria-label="Compartilhar com '+escapeHtml(c.name)+'">'+
             '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="18.49"/><line x1="15.41" y1="5.51" x2="8.59" y2="10.49"/></svg>'+
-          '</button>' : '')+
-        '</div>'+
-      '</div>'
-    ).join('') : '<p class="helper-text">Ninguem te deve nada por aqui.</p>';
-    debitEl.innerHTML = debit.length ? debit.map(c =>
-      '<div class="split-row">'+
-        '<div class="name">'+escapeHtml(c.name)+'</div>'+
-        '<div class="amt" style="color:var(--debit)">'+fmt(c.val)+'</div>'+
-        '<div class="row-actions">'+
-          '<button class="icon-btn pay-btn" data-id="'+c.id+'" data-action="pay" aria-label="Registrar pagamento para '+escapeHtml(c.name)+'">'+
-            '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>'+
           '</button>'+
         '</div>'+
       '</div>'
-    ).join('') : '<p class="helper-text">Voce nao deve nada por aqui.</p>';
+    ).join('');
 
     document.querySelectorAll('.pay-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        confirmPayment(btn.dataset.id, btn.dataset.action === 'pay');
+        confirmPayment(btn.dataset.id, false);
       });
     });
     document.querySelectorAll('.share-btn').forEach(btn => {
@@ -579,6 +718,13 @@
       });
     });
     renderPaymentsList();
+    document.querySelectorAll('.undo-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const payment = (state.settlements || []).find(s => s.id === btn.dataset.id);
+        if(payment) undoPayment(payment);
+      });
+    });
   }
 
   function confirmPayment(pid, isPaying){
@@ -589,20 +735,59 @@
     if(net <= 0.005) return;
     const payment = { id: uid(), from: isPaying ? YOU_ID : pid, to: isPaying ? pid : YOU_ID, amount: net, date: Date.now() };
     state.settlements.push(payment);
-    saveSettlements();
     renderAll();
     renderBalancesScreen();
+    saveSettlement(payment).catch(err => {
+      console.error('Pagamento:', err);
+      state.settlements = state.settlements.filter(s => s.id !== payment.id);
+      renderAll();
+      renderBalancesScreen();
+      toast('Nao foi possivel salvar o pagamento');
+    });
     toast(isPaying
       ? 'Pagamento para ' + personName(pid) + ' registrado'
       : 'Pagamento de ' + personName(pid) + ' confirmado',
       () => undoPayment(payment));
   }
 
+  function expenseAffectsPerson(expense, pid){
+    const payer = expense.payer || YOU_ID;
+    const participants = expense.participants || [];
+    return (payer === YOU_ID && participants.includes(pid)) ||
+      (payer === pid && participants.includes(YOU_ID));
+  }
+
+  function canUndoPayment(payment){
+    const pid = payment.from === YOU_ID ? payment.to : payment.from;
+    const hasLaterPayment = (state.settlements || []).some(s =>
+      s.id !== payment.id &&
+      (s.from === pid || s.to === pid) &&
+      Number(s.date || 0) > Number(payment.date || 0)
+    );
+    const hasLaterExpense = state.expenses.some(exp =>
+      expenseAffectsPerson(exp, pid) &&
+      Number(exp.updatedAt || exp.date || 0) > Number(payment.date || 0)
+    );
+    return !hasLaterPayment && !hasLaterExpense;
+  }
+
   function undoPayment(payment){
+    if(!state.settlements.some(s => s.id === payment.id)) return;
+    if(!canUndoPayment(payment)){
+      toast('Nao foi possivel desfazer: o saldo ja mudou');
+      return;
+    }
     state.settlements = state.settlements.filter(s => s.id !== payment.id);
-    saveSettlements();
     renderAll();
     renderBalancesScreen();
+    saveSettlement(payment, true).catch(err => {
+      console.error('Desfazer pagamento:', err);
+      if(!state.settlements.some(s => s.id === payment.id)) state.settlements.push(payment);
+      renderAll();
+      renderBalancesScreen();
+      toast('Nao foi possivel desfazer o pagamento');
+    });
+    toast('Pagamento desfeito');
   }
 
   function renderPaymentsList(){
@@ -621,40 +806,26 @@
         : 'Voce pagou ' + fmt(s.amount) + ' para ' + escapeHtml(personName(s.to));
       const d = new Date(s.date);
       const dateStr = d.toLocaleDateString('pt-BR', {day:'2-digit', month:'short'});
+      const canUndo = canUndoPayment(s);
       return '<div class="split-row settlement-row">'+
         '<div class="settle-info">'+
           '<div class="name">'+label+'</div>'+
-          '<div class="meta">'+dateStr+'</div>'+
+          '<div class="meta">confirmado . '+dateStr+'</div>'+
         '</div>'+
-        '<button class="icon-btn undo-settlement" data-id="'+s.id+'" aria-label="Reverter pagamento">'+
-          '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>'+
-        '</button>'+
+        (canUndo ? '<div class="row-actions">'+
+          '<button class="icon-btn undo-btn" data-id="'+s.id+'" aria-label="Desfazer pagamento">'+
+            '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>'+
+          '</button>'+
+        '</div>' : '')+
       '</div>';
     }).join('');
-    el.querySelectorAll('.undo-settlement').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const id = btn.dataset.id;
-        const payment = state.settlements.find(s => s.id === id);
-        state.settlements = state.settlements.filter(s => s.id !== id);
-        saveSettlements();
-        renderAll();
-        renderBalancesScreen();
-        toast('Pagamento revertido', payment ? () => {
-          state.settlements.push(payment);
-          saveSettlements();
-          renderAll();
-          renderBalancesScreen();
-          toast('Pagamento restaurado');
-        } : null);
-      });
-    });
   }
   document.getElementById('navBalances').addEventListener('click', () => {
     renderBalancesScreen();
     openScreen('screenBalances');
   });
   document.getElementById('balancesClose').addEventListener('click', () => closeScreen('screenBalances'));
-  
+
   // FIXED: navHome handler
   document.getElementById('navHome').addEventListener('click', () => {
     closeScreen('screenBalances');
@@ -663,6 +834,30 @@
     closeScreen('screenPeople');
     closeScreen('screenShare');
   });
+
+  // ---------- Sidebar Navigation (Desktop) ----------
+  document.getElementById('navHomeSidebar').addEventListener('click', () => {
+    closeAllScreens();
+    updateSidebarActive('navHomeSidebar');
+  });
+
+  document.getElementById('navBalancesSidebar').addEventListener('click', () => {
+    renderBalancesScreen();
+    openScreen('screenBalances');
+    updateSidebarActive('navBalancesSidebar');
+  });
+
+  document.getElementById('navPeopleSidebar').addEventListener('click', () => {
+    renderPeopleScreen();
+    openScreen('screenPeople');
+    updateSidebarActive('navPeopleSidebar');
+  });
+
+  function updateSidebarActive(activeId) {
+    document.querySelectorAll('.sidebar-nav .nav-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.id === activeId);
+    });
+  }
 
   // ---------- expense form ----------
   function resetForm(){
@@ -912,7 +1107,8 @@
       items: form.mode==='itens' ? items : [],
       participants: Array.from(form.participants),
       payer: form.payer,
-      date: form.editingId ? (state.expenses.find(e=>e.id===form.editingId)||{}).date || Date.now() : Date.now()
+      date: form.editingId ? (state.expenses.find(e=>e.id===form.editingId)||{}).date || Date.now() : Date.now(),
+      updatedAt: Date.now()
     };
     if(form.editingId){
       state.expenses = state.expenses.map(e => e.id===form.editingId ? expense : e);
@@ -969,7 +1165,6 @@
   function impactLine(pid, amt, payer){
     if(pid === payer) return '<div class="who-paid">pagou o total</div>';
     if(payer === YOU_ID) return '<div class="debt-line credit">'+escapeHtml(personName(pid))+' deve '+fmt(amt)+' a voce</div>';
-    if(pid === YOU_ID) return '<div class="debt-line debit">Voce deve '+fmt(amt)+' a '+escapeHtml(personName(payer))+'</div>';
     return '<div class="debt-line">'+escapeHtml(personName(pid))+' deve '+fmt(amt)+' a '+escapeHtml(personName(payer))+'</div>';
   }
   document.getElementById('detailClose').addEventListener('click', () => closeScreen('screenDetail'));
@@ -983,52 +1178,56 @@
   // ---------- share modal ----------
   function generateShareMessage(personNameVal){
     const recipientId = state.people.find(p=>p.name===personNameVal)?.id;
-    const receive = [], paid = [];
+    if(!recipientId) return '';
+    const gross = computeGross();
+    const net = (gross.perPerson[recipientId] || {}).net || 0;
+    if(net < 0.005) return '';
+
+    const totalSettled = (state.settlements || [])
+      .filter(s => (s.from === recipientId && s.to === YOU_ID) || (s.from === YOU_ID && s.to === recipientId))
+      .reduce((sum, s) => sum + (s.amount || 0), 0);
+
+    const allEntries = [];
     state.expenses.forEach(exp => {
       const shares = computeShares(exp);
-      if(!recipientId || !(shares[recipientId] || 0)) return;
+      if(!(shares[recipientId] || 0)) return;
       const payer = exp.payer || YOU_ID;
       if(payer === YOU_ID){
-        receive.push({ exp, share: shares[recipientId] });
-      } else if(payer === recipientId && (shares[YOU_ID] || 0) > 0){
-        paid.push({ exp, share: shares[YOU_ID] });
+        allEntries.push({ exp, share: shares[recipientId], date: exp.date || 0 });
       }
     });
+    allEntries.sort((a,b) => Number(a.date) - Number(b.date));
+
+    let remaining = totalSettled;
+    const pending = [];
+    for(const entry of allEntries){
+      if(remaining <= 0.005){
+        pending.push(entry);
+        continue;
+      }
+      if(remaining >= entry.share - 0.005){
+        remaining -= entry.share;
+      } else {
+        pending.push({ ...entry, share: entry.share - remaining });
+        remaining = 0;
+      }
+    }
+
+    if(!pending.length) return '';
 
     let msg = '*CashPad - Resumo de gastos*\n\n';
     msg += 'Opa, ' + personNameVal + '! Segue o resumo dos gastos:\n\n';
 
-    let receiveTotal = 0, paidTotal = 0;
-
-    if(receive.length){
-      msg += '*EU PAGUEI - voce deve:*\n';
-      receive.forEach(entry => {
-        receiveTotal += entry.share;
-        msg += '*' + entry.exp.description + '* - ' + fmt(entry.share) + '\n';
-        msg += itemBreakdown(entry.exp, recipientId);
-      });
-      msg += 'Subtotal: ' + fmt(receiveTotal) + '\n\n';
-    }
-
-    if(paid.length){
-      msg += '*VOCE PAGOU - abate da sua divida:*\n';
-      paid.forEach(entry => {
-        paidTotal += entry.share;
-        msg += '*' + entry.exp.description + '* - ' + fmt(entry.share) + '\n';
-        msg += itemBreakdown(entry.exp, YOU_ID);
-      });
-      msg += 'Subtotal: -' + fmt(paidTotal) + '\n\n';
-    }
+    let receiveTotal = 0;
+    pending.forEach(entry => {
+      receiveTotal += entry.share;
+      msg += '*' + entry.exp.description + '* - ' + fmt(entry.share) + '\n';
+      msg += itemBreakdown(entry.exp, recipientId);
+    });
+    msg += 'Subtotal: ' + fmt(receiveTotal) + '\n\n';
 
     msg += '----------------------------\n';
-    const net = receiveTotal - paidTotal;
-    if(net > 0.005){
-      msg += '*Saldo final:* voce deve ' + fmt(net) + ' pra mim\n';
-    } else if(net < -0.005){
-      msg += '*Saldo final:* Eu devo ' + fmt(-net) + ' para voce, ' + personNameVal + '\n';
-    } else {
-      msg += '*Saldo final:* tudo certo, sem saldo pendente!\n';
-    }
+    msg += '*Saldo final:* voce me deve ' + fmt(receiveTotal) + '\n';
     msg += '----------------------------\n';
 
     return msg;
@@ -1053,9 +1252,10 @@
 
   function openShareModal(personNameVal, isCredit, balanceVal){
     const msg = generateShareMessage(personNameVal);
+    if(!msg){ toast('Saldo ja quitado, nada a compartilhar'); return; }
     document.getElementById('sharePreview').textContent = msg;
     document.getElementById('shareTitle').textContent = 'Compartilhar com ' + personNameVal;
-    
+
     const whatsappUrl = 'https://wa.me/?text=' + encodeURIComponent(msg);
     document.getElementById('btnWhatsAppShare').href = whatsappUrl;
     
@@ -1072,7 +1272,21 @@
       toast('Erro ao copiar mensagem');
     });
   });
-  document.getElementById('btnWhatsAppShare').addEventListener('click', (e) => {
+  document.getElementById('btnWhatsAppShare').addEventListener('click', async (e) => {
+    if(!navigator.onLine){
+      e.preventDefault();
+      const msg = document.getElementById('sharePreview').textContent;
+      try{
+        if(navigator.share){
+          await navigator.share({ text: msg });
+        } else {
+          await navigator.clipboard.writeText(msg);
+          toast('Sem internet: mensagem copiada');
+        }
+      }catch(error){
+        if(error && error.name !== 'AbortError') toast('Nao foi possivel compartilhar');
+      }
+    }
     closeScreen('screenShare');
   });
 
@@ -1094,10 +1308,15 @@
   document.getElementById('btnLogout').addEventListener('click', () => {
     if(!confirm('Sair deste bloco?')) return;
     if(unsubscribe) unsubscribe();
+    unsubscribe = null;
+    activeCode = null;
+    hasPendingWrites = false;
+    lastSnapshotFromCache = false;
     localStorage.removeItem('cashpad:code');
     localStorage.removeItem('cashpad:theme');
     document.documentElement.classList.remove('dark');
     state = { people: [], expenses: [], settlements: [] };
+    updateConnectionStatus();
     closeScreen('screenInfo');
     showLogin();
     toast('Saiu do bloco');
@@ -1115,8 +1334,8 @@
       document.head.appendChild(s);
     });
   }
-  function loadQRCodeLib(){ return loadScript('https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js'); }
-  function loadHtml5QrLib(){ return loadScript('https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js'); }
+  function loadQRCodeLib(){ return loadScript('/vendor/qrcode.min.js'); }
+  function loadHtml5QrLib(){ return loadScript('/vendor/html5-qrcode.min.js'); }
 
   // ---------- QR Code generation ----------
   function renderQRCode(canvasId, code){
@@ -1220,7 +1439,10 @@
   function toggleDarkMode(){
     const isDark = document.documentElement.classList.toggle('dark');
     const theme = isDark ? 'dark' : 'light';
-    document.getElementById('btnToggleDark').setAttribute('aria-checked', isDark);
+    const btn = document.getElementById('btnToggleDark');
+    if(btn){
+      btn.setAttribute('aria-checked', isDark);
+    }
     localStorage.setItem('cashpad:theme', theme);
     const code = getAccessCode();
     if(code && db){
@@ -1235,6 +1457,32 @@
     }
   }
   initDarkMode();
+
+  // ---------- Desktop Mode Detection ----------
+  let isDesktop = false;
+  let isDesktopXL = false;
+
+  function checkDesktopMode() {
+    const wasDesktop = isDesktop;
+    const wasDesktopXL = isDesktopXL;
+    isDesktop = window.innerWidth >= 1200;
+    isDesktopXL = window.innerWidth >= 1440;
+
+    if (wasDesktop !== isDesktop || wasDesktopXL !== isDesktopXL) {
+      updateDesktopUI();
+    }
+  }
+
+  function updateDesktopUI() {
+    if (isDesktop) {
+      closeAllScreens();
+      updateSidebarActive('navHomeSidebar');
+    }
+    renderAll();
+  }
+
+  window.addEventListener('resize', checkDesktopMode);
+  checkDesktopMode();
 
   // ---------- First-entry guide ----------
   function showFirstGuide(){
@@ -1260,6 +1508,7 @@
 
   // ---------- SW Update Notification ----------
   let swWaiting = null;
+  let swReloading = false;
   function showUpdateToast(){
     const existing = document.querySelector('.toast-update');
     if(existing) existing.remove();
@@ -1269,8 +1518,16 @@
     document.body.appendChild(el);
     requestAnimationFrame(() => el.classList.add('show'));
     document.getElementById('btnUpdateApp').addEventListener('click', () => {
-      if(swWaiting) swWaiting.postMessage({type: 'SKIP_WAITING'});
-      location.reload();
+      if(!swWaiting){
+        location.reload();
+        return;
+      }
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if(swReloading) return;
+        swReloading = true;
+        location.reload();
+      }, { once: true });
+      swWaiting.postMessage({type: 'SKIP_WAITING'});
     });
   }
   if('serviceWorker' in navigator){
@@ -1290,14 +1547,12 @@
           });
         }
       });
+    }).catch(error => {
+      console.error('Service Worker:', error);
+      toast('Nao foi possivel preparar o modo offline');
     });
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       swWaiting = null;
-    });
-    navigator.serviceWorker.addEventListener('message', (event) => {
-      if(event.data && event.data.type === 'SW_UPDATED'){
-        showUpdateToast();
-      }
     });
   }
 

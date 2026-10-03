@@ -35,8 +35,6 @@
     "offers": { "@type": "Offer", "price": "0", "priceCurrency": "BRL" }
   }
   </script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -150,9 +148,26 @@
 
 <main id="app" style="display:none;">
 
+  <!-- Sidebar Navigation (Desktop) -->
+  <nav class="sidebar-nav" aria-label="Navegação principal">
+    <div class="brand">cash<span>pad</span></div>
+    <button class="nav-btn active" id="navHomeSidebar" aria-current="page">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v9a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1v-9"/></svg>
+      <span>Início</span>
+    </button>
+    <button class="nav-btn" id="navBalancesSidebar">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
+      <span>Saldos</span>
+    </button>
+    <button class="nav-btn" id="navPeopleSidebar">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><circle cx="17.5" cy="9" r="2.6"/><path d="M21.5 20c0-2.8-1.8-4.9-4.3-5.6"/></svg>
+      <span>Pessoas</span>
+    </button>
+  </nav>
+
   <header class="topbar">
     <div class="brand">cash<span>pad</span></div>
-    <button class="icon-btn" id="btnInfo" aria-label="Informacoes do bloco">
+    <button class="icon-btn" id="btnInfo" aria-label="Informacoes do bloco" aria-expanded="false" aria-controls="screenInfo">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
     </button>
     <button class="icon-btn" id="btnPeople" aria-label="Gerenciar pessoas">
@@ -160,31 +175,30 @@
     </button>
   </header>
 
-  <section class="receipt" aria-label="Saldo">
-    <div class="eyebrow">seu saldo</div>
-    <div class="balance-row">
-      <div class="balance-cell debit">
-        <div class="label">Voce deve</div>
-        <div class="val mono" id="sumYouOwe">R$ 0,00</div>
+  <div class="main-content">
+    <section class="receipt" aria-label="Saldo">
+      <div class="eyebrow">seu saldo</div>
+      <div class="balance-row">
+        <div class="balance-cell credit">
+          <div class="label">Te devem</div>
+          <div class="val mono" id="sumOwedToYou">R$ 0,00</div>
+        </div>
       </div>
-      <div class="balance-cell credit">
-        <div class="label">Te devem</div>
-        <div class="val mono" id="sumOwedToYou">R$ 0,00</div>
+      <hr class="divider-dashed">
+      <div class="net-line">
+        <div class="label">saldo geral</div>
+        <div class="val" id="netLine">-</div>
       </div>
-    </div>
-    <hr class="divider-dashed">
-    <div class="net-line">
-      <div class="label">saldo geral</div>
-      <div class="val" id="netLine">-</div>
-    </div>
-  </section>
+    </section>
 
-  <h2 class="section-label" id="historyLabel">historico</h2>
-  <div class="list" id="expenseList" role="list" aria-label="Lista de gastos"></div>
+    <h2 class="section-label" id="historyLabel">historico</h2>
+    <div class="list" id="expenseList" role="list" aria-label="Lista de gastos"></div>
 
-  <button class="fab" id="btnAdd" aria-label="Adicionar gasto">
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-  </button>
+    <button class="fab" id="btnAdd" aria-label="Adicionar gasto">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      <span class="fab-text">Adicionar gasto</span>
+    </button>
+  </div>
 
   <nav class="bottomnav" aria-label="Navegacao principal">
     <div class="bottomnav-inner">
@@ -308,10 +322,8 @@
     <div class="screen-body">
       <h3 class="section-label" style="margin-left:0;">te devem</h3>
       <div id="balCredit" role="list" aria-label="Pessoas que te devem"></div>
-      <h3 class="section-label" style="margin-left:0; margin-top:22px;">voce deve</h3>
-      <div id="balDebit" role="list" aria-label="Pessoas que voce deve"></div>
-      <h3 class="section-label" style="margin-left:0; margin-top:22px;">pagamentos</h3>
-      <div id="paymentsList" role="list" aria-label="Pagamentos registrados"></div>
+      <h3 class="section-label" style="margin-left:0; margin-top:22px;">pagamentos confirmados</h3>
+      <div id="paymentsList" role="list" aria-label="Pagamentos confirmados"></div>
     </div>
   </div>
 
@@ -337,7 +349,7 @@
   </div>
 
   <!-- ============ INFO MODAL ============ -->
-  <div class="screen" id="screenInfo">
+  <div class="screen" id="screenInfo" aria-hidden="true">
     <div class="share-modal">
       <div class="share-header">
         <div class="share-title">Bloco de gastos</div>
@@ -362,9 +374,9 @@
   </div>
 </main>
 
-<script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js" defer integrity="sha384-4DnN3LMk363cZnO0ZZ+46dvN6+1On5ODUbq/68J4ZeSDAghncVXodw2jecSmTyAe" crossorigin="anonymous"></script>
-<script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js" defer integrity="sha384-OWv+RYFfLxKnRm2S6RYMcxn1Un3vxC0dbSWy7XC9DKsJGGHMWBCbDV27k62l/2XK" crossorigin="anonymous"></script>
-<script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-check-compat.js" defer crossorigin="anonymous"></script>
+<script src="vendor/firebase-app-compat.js" defer integrity="sha384-4DnN3LMk363cZnO0ZZ+46dvN6+1On5ODUbq/68J4ZeSDAghncVXodw2jecSmTyAe"></script>
+<script src="vendor/firebase-firestore-compat.js" defer integrity="sha384-OWv+RYFfLxKnRm2S6RYMcxn1Un3vxC0dbSWy7XC9DKsJGGHMWBCbDV27k62l/2XK"></script>
+<script src="vendor/firebase-app-check-compat.js" defer></script>
 <script>self.FIREBASE_APPCHECK_DEBUG_TOKEN=true;</script>
 <script src="firebase-config.js" defer></script>
 <script src="js/app.js" defer></script>

@@ -1,5 +1,5 @@
-﻿const CACHE_NAME = 'cashpad-msifros8';
-const PRECACHE_URLS = [
+﻿const CACHE_NAME = 'cashpad-murs1800';
+const APP_SHELL = [
   '/',
   '/index.html',
   '/css/styles.css',
@@ -8,10 +8,30 @@ const PRECACHE_URLS = [
   '/manifest.json',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
-  'https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js',
-  'https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js',
-  'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap'
+  '/vendor/firebase-app-compat.js',
+  '/vendor/firebase-firestore-compat.js',
+  '/vendor/firebase-app-check-compat.js',
+  '/vendor/qrcode.min.js',
+  '/vendor/html5-qrcode.min.js'
 ];
+
+const PRECACHE_URLS = APP_SHELL;
+
+function isCacheable(response){
+  return response && (
+    (response.status === 200 && (response.type === 'basic' || response.type === 'cors')) ||
+    response.type === 'opaque'
+  );
+}
+
+async function fetchAndCache(request){
+  const response = await fetch(request);
+  if(isCacheable(response)){
+    const cache = await caches.open(CACHE_NAME);
+    await cache.put(request, response.clone());
+  }
+  return response;
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -37,45 +57,31 @@ self.addEventListener('activate', (event) => {
         );
       })
       .then(() => self.clients.claim())
-      .then(() => self.clients.matchAll())
-      .then((clients) => {
-        clients.forEach((client) => {
-          client.postMessage({type: 'SW_UPDATED'});
-        });
-      })
   );
 });
 
 self.addEventListener('fetch', (event) => {
-  // Skip non-GET requests
   if (event.request.method !== 'GET') return;
 
-  event.respondWith(
-    caches.match(event.request)
-      .then((cached) => {
-        // Return cached version, but also fetch update in background
-        const fetchPromise = fetch(event.request)
-          .then((response) => {
-            if (!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
-            }
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-            return response;
-          })
-          .catch(() => {
-            // Network failed, return cached if available
-            return cached;
-          });
+  const isNavigation = event.request.mode === 'navigate' || event.request.destination === 'document';
 
-        // Return cached immediately if available, otherwise wait for fetch
-        return cached || fetchPromise;
-      })
-      .catch(() => {
-        // If both cache and network fail, return offline page for navigation
-        if (event.request.destination === 'document') {
-          return caches.match('/index.html');
-        }
-      })
-  );
+  event.respondWith((async () => {
+    const cached = await caches.match(event.request, { ignoreSearch: isNavigation });
+
+    if(cached){
+      // Serve immediately and refresh without delaying the current request.
+      event.waitUntil(fetchAndCache(event.request).catch(() => undefined));
+      return cached;
+    }
+
+    try{
+      return await fetchAndCache(event.request);
+    }catch(error){
+      if(isNavigation){
+        const fallback = await caches.match('/index.html');
+        if(fallback) return fallback;
+      }
+      throw error;
+    }
+  })());
 });

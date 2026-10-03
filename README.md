@@ -22,6 +22,13 @@ PWA mobile-first para anotar despesas, dividir contas e calcular saldos entre pe
 - **QR Code** — compartilhe o codigo do bloco via QR
 - **PWA** — instavel no celular como app nativo
 
+### Funcionamento offline
+
+- Depois do primeiro acesso, o app, Firebase e recursos de QR ficam armazenados no dispositivo.
+- Blocos ja abertos podem ser consultados e alterados sem internet; as mudancas entram em uma fila local e sincronizam ao reconectar.
+- Criar um bloco ou baixar um bloco pela primeira vez exige conexao para validar o codigo no servidor.
+- O banner informa quando os dados estao locais, pendentes de sincronizacao ou quando o navegador nao oferece persistencia duravel.
+
 ## Como usar
 
 1. Acesse [cashpadapp.vercel.app](https://cashpadapp.vercel.app)
@@ -54,6 +61,7 @@ CashPad/
     ├── robots.txt        # Diretivas para crawlers
     ├── sitemap.xml       # Sitemap para SEO
     ├── firebase-config.js # Configuracao do Firebase (chave publica)
+    ├── vendor/            # Dependencias fixadas para inicializacao offline
     ├── css/
     │   └── styles.css    # Estilos (design receipt/papel)
     ├── js/

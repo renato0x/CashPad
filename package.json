@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "predeploy": "node predeploy.js",
-    "deploy": "npm run predeploy && vercel --prod --yes --scope f0ckthepattern-4028s-projects"
+    "deploy": "npm run predeploy && vercel --prod --yes"
   },
   "keywords": ["gastos", "divisao", "pwa", "offline", "firebase"],
   "license": "UNLICENSED",
