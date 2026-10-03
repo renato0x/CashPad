@@ -33,8 +33,7 @@ PWA mobile-first para anotar despesas, dividir contas e calcular saldos entre pe
 
 1. Acesse [cashpadapp.vercel.app](https://cashpadapp.vercel.app)
 2. Crie um bloco novo (gera um codigo de 6 caracteres)
-3. Compartilhe o codigo com seus amigos
-4. Adicione pessoas, registre gastos e acompanhe os saldos
+3. Adicione pessoas, registre gastos e acompanhe os saldos
 
 ## Stack
 
