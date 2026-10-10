@@ -14,10 +14,6 @@
 
 ---
 
-## About
-
-CashPad is a lightweight shared expense tracker for roommates, friends and small groups. Create a block, add people and expenses, and keep every balance clear without accounts or spreadsheets.
-
 ## De onde veio
 
 O CashPad nasceu de uma necessidade bem simples dentro da república onde moro: registrar os gastos da casa rapidamente e dividir cada compra com as pessoas certas, sem depender de planilhas ou ficar fazendo conta no grupo.
