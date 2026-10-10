@@ -1,84 +1,65 @@
-# CashPad
+<div align="center">
 
-Dividir gastos entre amigos e grupos de forma simples, rapida e offline-first.
+  <img src="./src/icons/icon.svg" width="96" alt="CashPad logo" />
 
-**Live:** [cashpadapp.vercel.app](https://cashpadapp.vercel.app)
+  <h1>CashPad</h1>
+
+  <p>Shared expenses without the group-chat math.</p>
+
+  <p>
+    <a href="https://cashpadapp.vercel.app"><strong>Open CashPad ↗</strong></a>
+  </p>
+
+</div>
 
 ---
 
-## O que e
+## De onde veio
 
-PWA mobile-first para anotar despesas, dividir contas e calcular saldos entre pessoas. Funciona offline, sincroniza entre dispositivos via Firebase Firestore e exporta resumo para WhatsApp.
+O CashPad nasceu de uma necessidade bem simples dentro da república onde moro: registrar os gastos da casa rapidamente e dividir cada compra com as pessoas certas, sem depender de planilhas ou ficar fazendo conta no grupo.
 
-## Funcionalidades
+Hoje, honestamente, já não vivo sem ele. Outros colegas que também moram em república começaram a usar, e o projeto continua evoluindo conforme novas demandas aparecem. Minha própria casa é o ambiente de teste diário.
 
-- **Gastos simples** — valor unico dividido entre participantes
-- **Gastos com itens** — cada item com valor e participantes proprios
-- **Saldo em tempo real** — bruto (te devem / voce deve) e liquido por pessoa
-- **Pagamentos** — confirmacao em 1 toque para quitar dividas
-- **Compartilhar** — exporta resumo formatado para WhatsApp
-- **Offline-first** — funciona sem internet, sincroniza ao reconectar
-- **Dark mode** — sincroniza entre dispositivos via Firestore
-- **QR Code** — compartilhe o codigo do bloco via QR
-- **PWA** — instavel no celular como app nativo
+## What it does
 
-### Funcionamento offline
+- **Flexible splits** — split a total equally or assign individual items.
+- **Live balances** — see how much each person paid, owes or should receive.
+- **Payment tracking** — register settlements without losing the expense history.
+- **Simple sharing** — invite people through a short code or QR code and export summaries to WhatsApp.
+- **Cross-device sync** — keep the same block updated across different devices.
 
-- Depois do primeiro acesso, o app, Firebase e recursos de QR ficam armazenados no dispositivo.
-- Blocos ja abertos podem ser consultados e alterados sem internet; as mudancas entram em uma fila local e sincronizam ao reconectar.
-- Criar um bloco ou baixar um bloco pela primeira vez exige conexao para validar o codigo no servidor.
-- O banner informa quando os dados estao locais, pendentes de sincronizacao ou quando o navegador nao oferece persistencia duravel.
+## How it works
 
-## Como usar
+1. Create a shared expense block.
+2. Add people and record expenses.
+3. Follow the balances and settle payments.
 
-1. Acesse [cashpadapp.vercel.app](https://cashpadapp.vercel.app)
-2. Crie um bloco novo (gera um codigo de 6 caracteres)
-3. Adicione pessoas, registre gastos e acompanhe os saldos
+No accounts, spreadsheets or manual calculations between roommates.
 
-## Stack
+## Built with
 
-| Camada | Tecnologia |
-|--------|-----------|
-| Frontend | HTML, CSS, JavaScript (vanilla) |
-| Backend/DB | Firebase Firestore |
-| Hospedagem | Vercel |
-| PWA | Service Worker + Web App Manifest |
+`Vanilla JavaScript` · `Firebase Firestore` · `Vercel`
 
-## Estrutura do projeto
+<details>
+<summary><strong>Technical notes</strong></summary>
 
-```
-CashPad/
-├── package.json          # Scripts de deploy
-├── predeploy.js          # Bump da versao do SW antes de cada deploy
-├── firebase.json         # Configuracao do Firebase
-├── firestore.rules       # Regras de seguranca do Firestore
-└── src/
-    ├── index.html        # HTML principal
-    ├── sw.js             # Service Worker (cache offline)
-    ├── manifest.json     # PWA manifest
-    ├── vercel.json       # Headers de seguranca (CSP, HSTS, etc.)
-    ├── robots.txt        # Diretivas para crawlers
-    ├── sitemap.xml       # Sitemap para SEO
-    ├── firebase-config.js # Configuracao do Firebase (chave publica)
-    ├── vendor/            # Dependencias fixadas para inicializacao offline
-    ├── css/
-    │   └── styles.css    # Estilos (design receipt/papel)
-    ├── js/
-    │   └── app.js        # Logica principal da aplicacao
-    └── icons/
-        ├── icon-192.png  # Icone PWA 192x192
-        ├── icon-512.png  # Icone PWA 512x512
-        └── icon.svg      # Icone vetorial
-```
+- Framework-free frontend built with HTML, CSS and JavaScript.
+- Firebase Firestore for shared data and real-time synchronization.
+- Firebase security rules for data access.
+- Installable as a Progressive Web App.
+- Previously opened blocks remain available during temporary connection loss.
+- Production deployment handled through Vercel.
 
-## Deploy
+</details>
+
+## Development
 
 ```bash
-# Instalar dependencias (nao ha — e vanilla JS)
-# Bump da versao do SW + deploy no Vercel
 npm run deploy
 ```
 
-## Licenca
+The deployment script updates the service worker version before publishing the application.
 
-Projeto pessoal. Todos os direitos reservados.
+## License
+
+Personal project. All rights reserved.

@@ -1,13 +1,13 @@
 {
   "name": "cashpad",
   "version": "1.0.0",
-  "description": "PWA para dividir gastos entre amigos e grupos de forma simples e offline-first",
+  "description": "Shared expense tracking for friends, roommates, and groups",
   "private": true,
   "scripts": {
     "predeploy": "node predeploy.js",
     "deploy": "npm run predeploy && vercel --prod --yes"
   },
-  "keywords": ["gastos", "divisao", "pwa", "offline", "firebase"],
+  "keywords": ["expenses", "roommates", "split-bills", "firebase", "pwa"],
   "license": "UNLICENSED",
   "devDependencies": {
     "firebase-admin": "^12.0.0"
