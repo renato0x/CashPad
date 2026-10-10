@@ -18,7 +18,7 @@
 
 O CashPad nasceu de uma necessidade bem simples dentro da república onde moro: registrar os gastos da casa rapidamente e dividir cada compra com as pessoas certas, sem depender de planilhas ou ficar fazendo conta no grupo.
 
-Hoje, honestamente, já não vivo sem ele. Outros colegas que também moram em república começaram a usar, e o projeto continua evoluindo conforme novas demandas aparecem. Minha própria casa é o ambiente de teste diário.
+Hoje, honestamente, não vivo mais sem isso aqui. A galera de casa também começou a usar e o sistema continua evoluindo conforme o caos do dia a dia exige novas features. Basicamente, o nosso teto virou o ambiente de testes diários.
 
 ## What it does
 
