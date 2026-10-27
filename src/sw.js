@@ -1,4 +1,5 @@
-﻿const CACHE_NAME = 'cashpad-mvq4yb68';
+﻿const CACHE_NAME = 'cashpad-mvq5ithr';
+const BROKEN_CACHE_NAME = 'cashpad-mvq4yb68';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -35,8 +36,14 @@ async function fetchAndCache(request){
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(PRECACHE_URLS))
+    caches.has(BROKEN_CACHE_NAME)
+      .then((recoveringBrokenRelease) => {
+        return caches.open(CACHE_NAME)
+          .then((cache) => cache.addAll(PRECACHE_URLS))
+          .then(() => {
+            if(recoveringBrokenRelease) return self.skipWaiting();
+          });
+      })
   );
 });
 
@@ -50,13 +57,22 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
       .then((cacheNames) => {
+        const recoveringBrokenRelease = cacheNames.includes(BROKEN_CACHE_NAME);
         return Promise.all(
           cacheNames
             .filter((name) => name !== CACHE_NAME)
             .map((name) => caches.delete(name))
-        );
+        ).then(() => recoveringBrokenRelease);
       })
-      .then(() => self.clients.claim())
+      .then((recoveringBrokenRelease) => {
+        return self.clients.claim().then(() => recoveringBrokenRelease);
+      })
+      .then((recoveringBrokenRelease) => {
+        if(!recoveringBrokenRelease) return;
+        return self.clients.matchAll({type: 'window'}).then((clients) => {
+          return Promise.all(clients.map((client) => client.navigate(client.url)));
+        });
+      })
   );
 });
 

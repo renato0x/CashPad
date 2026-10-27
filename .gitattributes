@@ -1,0 +1,4 @@
+/src/vendor/*.js text eol=lf
+/src/index.html text eol=lf
+/src/sw.js text eol=lf
+/predeploy.js text eol=lf
