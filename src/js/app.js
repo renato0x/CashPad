@@ -922,30 +922,76 @@
 
   let editingItemId = null;
 
+  function normalizeCurrencyValue(value, completeDecimal){
+    let v = String(value || '').trim().replace(/\./g, ',');
+    v = v.replace(/[^0-9,]/g, '');
+    const parts = v.split(',');
+    if(parts.length > 2) v = parts[0] + ',' + parts.slice(1).join('');
+    if(parts[1] && parts[1].length > 2) v = parts[0] + ',' + parts[1].slice(0, 2);
+
+    if(completeDecimal && v){
+      if(!v.includes(',')){
+        v += ',00';
+      } else {
+        const normalizedParts = v.split(',');
+        if(normalizedParts[1].length === 1) v += '0';
+      }
+    }
+
+    return v;
+  }
+
+  function extractTrailingPrice(description){
+    const match = String(description || '').match(/^(.+?)\s+(\d+[,.]\d{1,2})\s*$/);
+    if(!match) return null;
+
+    const normalizedDescription = match[1].trim().replace(/\s+/g, ' ');
+    const numericValue = Number(match[2].replace(',', '.'));
+    if(!normalizedDescription || !Number.isFinite(numericValue) || numericValue <= 0) return null;
+
+    return {
+      description: normalizedDescription,
+      value: normalizeCurrencyValue(match[2], true)
+    };
+  }
+
+  function transferTrailingPrice(descriptionInput, valueInput, mode, focusValue){
+    if(mode !== 'simples') return false;
+
+    const result = extractTrailingPrice(descriptionInput.value);
+    if(!result) return false;
+
+    descriptionInput.value = result.description;
+    valueInput.value = result.value;
+    if(focusValue) valueInput.focus();
+    return true;
+  }
+
   function formatCurrencyInput(input){
     let formatting = false;
     input.addEventListener('input', () => {
       if(formatting) return;
       formatting = true;
-      let v = input.value.replace(/\./g, ',');
-      v = v.replace(/[^0-9,]/g, '');
-      const parts = v.split(',');
-      if(parts.length > 2) v = parts[0] + ',' + parts.slice(1).join('');
-      if(parts[1] && parts[1].length > 2) v = parts[0] + ',' + parts[1].slice(0, 2);
-      input.value = v;
+      input.value = normalizeCurrencyValue(input.value, false);
       formatting = false;
     });
     input.addEventListener('blur', () => {
-      let v = input.value.trim();
-      if(!v) return;
-      if(!v.includes(',')){
-        input.value = v + ',00';
-      } else {
-        const parts = v.split(',');
-        if(parts[1].length === 1) input.value = v + '0';
-      }
+      if(!input.value.trim()) return;
+      input.value = normalizeCurrencyValue(input.value, true);
     });
   }
+
+  const descriptionInput = document.getElementById('fDesc');
+  const totalValueInput = document.getElementById('fValor');
+  descriptionInput.addEventListener('keydown', e => {
+    if(e.key !== 'Enter') return;
+    if(transferTrailingPrice(descriptionInput, totalValueInput, form.mode, true)){
+      e.preventDefault();
+    }
+  });
+  descriptionInput.addEventListener('blur', () => {
+    transferTrailingPrice(descriptionInput, totalValueInput, form.mode, false);
+  });
 
   function renderItems(){
     const el = document.getElementById('itemsContainer');
